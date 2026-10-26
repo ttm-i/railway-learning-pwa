@@ -45,7 +45,8 @@ export function findRoute(
   startId: StableId,
   destinationId: StableId,
   viaIds: StableId[],
-  priority: RouteSearchPriority
+  priority: RouteSearchPriority,
+  excludedLineIds: StableId[] = []
 ) {
   const initial: SearchState = {
     stationId: startId,
@@ -68,6 +69,7 @@ export function findRoute(
     if (current.stationId === destinationId && current.viaIndex === viaIds.length) return current.path
 
     getNeighbors(dataset, current.stationId).forEach(({ stationId, edge }) => {
+      if (excludedLineIds.includes(edge.lineId)) return
       const next: SearchState = {
         stationId,
         lineId: edge.lineId,
@@ -88,10 +90,11 @@ export function findRouteCandidates(
   dataset: DemoDataset,
   startId: StableId,
   destinationId: StableId,
-  viaIds: StableId[] = []
+  viaIds: StableId[] = [],
+  excludedLineIds: StableId[] = []
 ): RouteCandidate[] {
-  const segmentsPath = findRoute(dataset, startId, destinationId, viaIds, 'segments')
-  const transfersPath = findRoute(dataset, startId, destinationId, viaIds, 'transfers')
+  const segmentsPath = findRoute(dataset, startId, destinationId, viaIds, 'segments', excludedLineIds)
+  const transfersPath = findRoute(dataset, startId, destinationId, viaIds, 'transfers', excludedLineIds)
   if (segmentsPath.length === 0 && transfersPath.length === 0) return []
   if (segmentsPath.join('|') === transfersPath.join('|')) {
     return [{ kind: 'both', path: segmentsPath, metrics: calculateMetrics(dataset, segmentsPath) }]

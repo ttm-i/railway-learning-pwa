@@ -4,7 +4,15 @@ import type { DemoDataset, StableId } from './types'
 export type RouteLabelMode = 'all' | 'stations-hidden' | 'all-hidden'
 export type HintLevel = 0 | 1 | 2 | 3
 
-export function findShortestPath(dataset: DemoDataset, startId: StableId, destinationId: StableId): StableId[] {
+export function getOrderedViaProgress(path: StableId[], viaIds: StableId[]) {
+  let completed = 0
+  path.forEach((stationId) => {
+    if (viaIds[completed] === stationId) completed += 1
+  })
+  return completed
+}
+
+export function findShortestPath(dataset: DemoDataset, startId: StableId, destinationId: StableId, excludedLineIds: StableId[] = []): StableId[] {
   if (startId === destinationId) return [startId]
 
   const queue: StableId[][] = [[startId]]
@@ -13,7 +21,8 @@ export function findShortestPath(dataset: DemoDataset, startId: StableId, destin
   while (queue.length > 0) {
     const path = queue.shift()!
     const currentId = path[path.length - 1]
-    for (const { stationId } of getNeighbors(dataset, currentId)) {
+    for (const { stationId, edge } of getNeighbors(dataset, currentId)) {
+      if (excludedLineIds.includes(edge.lineId)) continue
       if (visited.has(stationId)) continue
       const nextPath = [...path, stationId]
       if (stationId === destinationId) return nextPath
@@ -39,10 +48,11 @@ export function getHintText(
   dataset: DemoDataset,
   currentId: StableId,
   destinationId: StableId,
-  level: HintLevel
+  level: HintLevel,
+  excludedLineIds: StableId[] = []
 ) {
   if (level === 0) return ''
-  const shortestPath = findShortestPath(dataset, currentId, destinationId)
+  const shortestPath = findShortestPath(dataset, currentId, destinationId, excludedLineIds)
   const nextId = shortestPath[1]
   if (!nextId) return currentId === destinationId ? '目的地に到着しています。' : '進める経路が見つかりません。'
 

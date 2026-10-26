@@ -184,6 +184,12 @@ main { padding-bottom: calc(92px + env(safe-area-inset-bottom)); }
 .via-panel li b { display: grid; place-items: center; width: 22px; height: 22px; border-radius: 99px; color: #fff; background: var(--green); font-size: .63rem; }
 .via-panel li button { display: grid; place-items: center; width: 29px; height: 29px; padding: 0; border: 0; border-radius: 8px; color: var(--muted); background: #edf1ee; }
 .via-panel li button:disabled { opacity: .3; }
+.line-exclusions { display: grid; grid-template-columns: 1fr 1fr; gap: 7px; margin: 0 0 12px; padding: 11px; border: 1px solid var(--line); border-radius: 15px; }
+.line-exclusions legend { padding: 0 5px; font-size: .75rem; font-weight: 800; }
+.line-exclusions p { grid-column: 1 / -1; margin: -2px 0 2px; color: var(--muted); font-size: .64rem; }
+.line-exclusions label { display: flex; align-items: center; gap: 7px; min-height: 38px; padding: 6px 8px; border-radius: 10px; background: #f5f8f6; font-size: .72rem; font-weight: 800; }
+.line-exclusions input { width: 18px; height: 18px; accent-color: var(--green); }
+.line-exclusions i { width: 15px; height: 5px; border-radius: 99px; }
 .route-search-empty { margin: 10vh 0; padding: 24px 18px; border: 1px dashed var(--line); border-radius: 18px; color: var(--muted); text-align: center; font-size: .8rem; line-height: 1.6; }
 .candidate-tabs { display: grid; gap: 6px; margin-bottom: 10px; }
 .candidate-tabs:has(button + button) { grid-template-columns: 1fr 1fr; }
@@ -201,6 +207,20 @@ main { padding-bottom: calc(92px + env(safe-area-inset-bottom)); }
 .search-route-list small { flex-basis: 100%; color: var(--muted); font-size: .64rem; font-weight: 600; }
 .search-route-list em { padding: 3px 5px; border-radius: 7px; color: #704b00; background: #f8e7c2; font-size: .58rem; font-style: normal; }
 .search-caution { margin: 10px 0 0; color: var(--muted); font-size: .66rem; line-height: 1.6; }
+.search-to-game { width: 100%; margin-top: 12px; }
+.game-conditions { display: grid; gap: 7px; margin-bottom: 12px; padding: 11px 12px; border: 1px solid #d7c184; border-radius: 14px; background: #fff7df; }
+.game-conditions > div { display: grid; gap: 2px; }
+.game-conditions > div strong { font-size: .76rem; }
+.game-conditions > div span { color: #796637; font-size: .63rem; }
+.game-conditions p { display: flex; flex-wrap: wrap; align-items: center; gap: 5px; margin: 0; font-size: .68rem; }
+.game-conditions p b { min-width: 72px; color: #796637; }
+.game-conditions p span { padding: 4px 6px; border-radius: 8px; background: #f4e6b9; font-weight: 800; }
+.game-conditions p span.done { text-decoration: line-through; opacity: .55; }
+.game-conditions > button { justify-self: end; padding: 6px 8px; border: 0; border-radius: 8px; color: #6d581f; background: #f4e6b9; font-size: .66rem; font-weight: 800; }
+.game-no-candidates { margin: 0; padding: 11px; border-radius: 11px; color: #8b3029; background: #fae9e7; font-size: .72rem; line-height: 1.55; }
+.history-conditions { display: grid; gap: 4px; margin-top: 8px; padding: 8px; border-radius: 10px; background: #fff7df; }
+.history-conditions span { display: flex; gap: 7px; color: #6d581f; font-size: .65rem; }
+.history-conditions b { min-width: 42px; }
 .settings-summary { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
 .settings-summary div { display: grid; gap: 3px; padding: 14px 7px; border-radius: 15px; color: #fff; background: var(--green); text-align: center; }
 .settings-summary strong { font-size: 1.25rem; }
@@ -256,6 +276,11 @@ main { padding-bottom: calc(92px + env(safe-area-inset-bottom)); }
   .hint-box > span, .hint-box p { color: #e8d8a9; }
   .history-search, .history-sort select, .history-card, .search-endpoints select, .search-endpoints > button, .via-panel li, .via-panel > select, .candidate-tabs button, .search-result-card { color: var(--ink); background: #16241f; }
   .via-panel { background: #1b2a25; }
+  .line-exclusions label { background: #1b2a25; }
+  .game-conditions, .history-conditions { background: #3c3219; }
+  .game-conditions > div span, .game-conditions p b, .history-conditions span { color: #e8d8a9; }
+  .game-conditions p span, .game-conditions > button { color: #f7e6b6; background: #645225; }
+  .game-no-candidates { color: #ffd2cd; background: #492925; }
   .history-card__top small, .history-lines span, .history-metrics span { background: #1d2d27; }
   .delete-confirm { color: #ffd2cd; background: #492925; }
   .delete-confirm button { color: #ffd2cd; background: #633630; }

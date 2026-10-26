@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useLiveQuery } from 'dexie-react-hooks'
-import { ArrowDown, ArrowLeftRight, ArrowUp, MapPinned, Plus, X } from 'lucide-react'
+import { ArrowDown, ArrowLeftRight, ArrowUp, MapPinned, Play, Plus, X } from 'lucide-react'
 import { RailMap } from '../components/RailMap'
 import { demoNetwork } from '../data/demoNetwork'
 import { findEdge, getStation } from '../domain/graph'
@@ -12,11 +12,20 @@ interface SavedRouteSearchOptions {
   startId: StableId
   destinationId: StableId
   viaIds: StableId[]
+  excludedLineIds?: StableId[]
+}
+
+export interface RouteSearchGameConditions {
+  startId: StableId
+  destinationId: StableId
+  viaIds: StableId[]
+  excludedLineIds: StableId[]
 }
 
 const initialStart: StableId = 'demo:station:harukaze'
 const initialDestination: StableId = 'demo:station:hoshimi'
 const stationIds = new Set(demoNetwork.stations.map((station) => station.stableId))
+const lineIds = new Set(demoNetwork.lines.map((line) => line.stableId))
 
 function isSavedOptions(value: unknown): value is SavedRouteSearchOptions {
   if (!value || typeof value !== 'object') return false
@@ -25,15 +34,18 @@ function isSavedOptions(value: unknown): value is SavedRouteSearchOptions {
     options.startId && stationIds.has(options.startId)
     && options.destinationId && stationIds.has(options.destinationId)
     && Array.isArray(options.viaIds) && options.viaIds.every((id) => stationIds.has(id))
+    && (options.excludedLineIds === undefined
+      || Array.isArray(options.excludedLineIds) && options.excludedLineIds.every((id) => lineIds.has(id)))
   )
 }
 
-export function RouteSearchView() {
+export function RouteSearchView({ onStartGame }: { onStartGame?: (conditions: RouteSearchGameConditions) => void }) {
   const saved = useLiveQuery(() => db.settings.get('routeSearchOptions'), [], null)
   const [ready, setReady] = useState(false)
   const [startId, setStartId] = useState<StableId>(initialStart)
   const [destinationId, setDestinationId] = useState<StableId>(initialDestination)
   const [viaIds, setViaIds] = useState<StableId[]>([])
+  const [excludedLineIds, setExcludedLineIds] = useState<StableId[]>([])
   const [selectedIndex, setSelectedIndex] = useState(0)
 
   useEffect(() => {
@@ -42,19 +54,20 @@ export function RouteSearchView() {
       setStartId(saved.value.startId)
       setDestinationId(saved.value.destinationId)
       setViaIds(saved.value.viaIds)
+      setExcludedLineIds(saved.value.excludedLineIds ?? [])
     }
     setReady(true)
   }, [ready, saved])
 
   useEffect(() => {
     if (!ready) return
-    void db.settings.put({ key: 'routeSearchOptions', value: { startId, destinationId, viaIds } })
+    void db.settings.put({ key: 'routeSearchOptions', value: { startId, destinationId, viaIds, excludedLineIds } })
     setSelectedIndex(0)
-  }, [ready, startId, destinationId, viaIds])
+  }, [ready, startId, destinationId, viaIds, excludedLineIds])
 
   const candidates = useMemo(
-    () => findRouteCandidates(demoNetwork, startId, destinationId, viaIds),
-    [startId, destinationId, viaIds]
+    () => findRouteCandidates(demoNetwork, startId, destinationId, viaIds, excludedLineIds),
+    [startId, destinationId, viaIds, excludedLineIds]
   )
   const selected = candidates[Math.min(selectedIndex, candidates.length - 1)]
   const availableViaStations = demoNetwork.stations.filter(
@@ -119,6 +132,24 @@ export function RouteSearchView() {
         ) : <small>追加できる駅はありません。</small>}
       </div>
 
+      <fieldset className="line-exclusions">
+        <legend>使わない路線</legend>
+        <p>選んだ路線を使わずに検索します。</p>
+        {demoNetwork.lines.map((line) => (
+          <label key={line.stableId}>
+            <input
+              type="checkbox"
+              checked={excludedLineIds.includes(line.stableId)}
+              onChange={(event) => setExcludedLineIds((items) => event.target.checked
+                ? [...items, line.stableId]
+                : items.filter((id) => id !== line.stableId))}
+            />
+            <i style={{ background: line.color }} />
+            <span>{line.name}</span>
+          </label>
+        ))}
+      </fieldset>
+
       {startId === destinationId ? (
         <div className="route-search-empty">出発駅と目的駅に別の駅を選んでください。</div>
       ) : candidates.length === 0 ? (
@@ -152,6 +183,7 @@ export function RouteSearchView() {
               })}
             </ol>
             <p className="search-caution">この架空データで確認済みの接続だけを使用しています。所要時間・料金は推測していません。</p>
+            {onStartGame && <button className="primary-button search-to-game" onClick={() => onStartGame({ startId, destinationId, viaIds, excludedLineIds })}><Play size={17} aria-hidden="true" />この条件でゲーム開始</button>}
           </article>
         </>}
       </>}

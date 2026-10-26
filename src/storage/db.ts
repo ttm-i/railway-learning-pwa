@@ -42,6 +42,8 @@ export interface RouteSuspensionRecord {
   labelMode?: RouteLabelMode
   hintLevel?: HintLevel
   routeExpanded?: boolean
+  viaIds?: StableId[]
+  excludedLineIds?: StableId[]
   datasetVersion: string
   updatedAt: string
 }
@@ -52,6 +54,8 @@ export interface RouteHistoryRecord {
   datasetVersion: string
   path: StableId[]
   lineIds?: StableId[]
+  viaIds?: StableId[]
+  excludedLineIds?: StableId[]
   metrics: RouteMetrics
 }
 

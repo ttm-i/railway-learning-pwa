@@ -4,12 +4,12 @@ import { ArrowRight, CheckCircle2, ChevronDown, Flag, Gamepad2, History, Lightbu
 import { RailMap } from '../components/RailMap'
 import { demoNetwork } from '../data/demoNetwork'
 import { calculateMetrics, getNeighbors, getStation, isValidPath } from '../domain/graph'
-import { getHintText, type HintLevel, type RouteLabelMode } from '../domain/routeGame'
+import { getHintText, getOrderedViaProgress, type HintLevel, type RouteLabelMode } from '../domain/routeGame'
 import { getRouteLineIds } from '../domain/routeHistory'
 import type { StableId } from '../domain/types'
 import { db } from '../storage/db'
 import { RouteHistoryView } from './RouteHistoryView'
-import { RouteSearchView } from './RouteSearchView'
+import { RouteSearchView, type RouteSearchGameConditions } from './RouteSearchView'
 
 const initialStart: StableId = 'demo:station:harukaze'
 const initialDestination: StableId = 'demo:station:hoshimi'
@@ -32,6 +32,8 @@ export function RouteGameTab() {
   const [labelMode, setLabelMode] = useState<RouteLabelMode>('all')
   const [hintLevel, setHintLevel] = useState<HintLevel>(0)
   const [routeExpanded, setRouteExpanded] = useState(false)
+  const [viaIds, setViaIds] = useState<StableId[]>([])
+  const [excludedLineIds, setExcludedLineIds] = useState<StableId[]>([])
   const [view, setView] = useState<'game' | 'search' | 'history'>('game')
   const [restored, setRestored] = useState(false)
   const historyCount = useLiveQuery(() => db.routeHistory.count(), []) ?? 0
@@ -45,6 +47,8 @@ export function RouteGameTab() {
       if (isLabelMode(saved.labelMode)) setLabelMode(saved.labelMode)
       if ([0, 1, 2, 3].includes(saved.hintLevel ?? -1)) setHintLevel(saved.hintLevel as HintLevel)
       setRouteExpanded(saved.routeExpanded ?? false)
+      setViaIds(saved.viaIds ?? [])
+      setExcludedLineIds(saved.excludedLineIds ?? [])
       setMessage('前回の続きから再開しました。')
     }
     setRestored(true)
@@ -53,18 +57,20 @@ export function RouteGameTab() {
   useEffect(() => {
     if (!restored) return
     void db.routeSuspension.put({
-      id: 'active', startId, destinationId, path, labelMode, hintLevel, routeExpanded,
+      id: 'active', startId, destinationId, path, labelMode, hintLevel, routeExpanded, viaIds, excludedLineIds,
       datasetVersion: demoNetwork.version, updatedAt: new Date().toISOString()
     })
-  }, [startId, destinationId, path, labelMode, hintLevel, routeExpanded, restored])
+  }, [startId, destinationId, path, labelMode, hintLevel, routeExpanded, viaIds, excludedLineIds, restored])
 
   const currentId = path[path.length - 1]
-  const candidates = getNeighbors(demoNetwork, currentId)
-  const arrived = currentId === destinationId
+  const candidates = getNeighbors(demoNetwork, currentId).filter(({ edge }) => !excludedLineIds.includes(edge.lineId))
+  const viaProgress = getOrderedViaProgress(path, viaIds)
+  const arrived = currentId === destinationId && viaProgress === viaIds.length
   const metrics = useMemo(() => calculateMetrics(demoNetwork, path), [path])
   const hideStationNames = labelMode !== 'all'
   const hideLineNames = labelMode === 'all-hidden'
-  const hintText = getHintText(demoNetwork, currentId, destinationId, hintLevel)
+  const hintTargetId = viaIds[viaProgress] ?? destinationId
+  const hintText = getHintText(demoNetwork, currentId, hintTargetId, hintLevel, excludedLineIds)
 
   const stationLabel = (stationId: StableId, routeIndex?: number) => {
     const stationName = getStation(demoNetwork, stationId)?.canonicalName ?? '不明な駅'
@@ -83,8 +89,18 @@ export function RouteGameTab() {
       setMessage('その駅へは直接進めません。経路は変更していません。')
       return
     }
-    setPath((value) => [...value, stationId])
-    setMessage(stationId === destinationId ? '目的地に到着しました。内容を確認して確定してください。' : '次の駅へ進みました。')
+    const nextPath = [...path, stationId]
+    const nextViaProgress = getOrderedViaProgress(nextPath, viaIds)
+    setPath(nextPath)
+    if (stationId === destinationId && nextViaProgress === viaIds.length) {
+      setMessage('目的地に到着しました。内容を確認して確定してください。')
+    } else if (stationId === destinationId) {
+      setMessage('目的地を通りましたが、まだ指定された経由駅が残っています。')
+    } else if (nextViaProgress > viaProgress) {
+      setMessage(`経由駅 ${nextViaProgress} / ${viaIds.length} を通過しました。`)
+    } else {
+      setMessage('次の駅へ進みました。')
+    }
   }
 
   const restart = (nextStart = startId, nextDestination = destinationId) => {
@@ -98,7 +114,7 @@ export function RouteGameTab() {
     if (!arrived) return
     await db.routeHistory.add({
       id: crypto.randomUUID(), createdAt: new Date().toISOString(), datasetVersion: demoNetwork.version,
-      path, lineIds: getRouteLineIds(demoNetwork, path), metrics
+      path, lineIds: getRouteLineIds(demoNetwork, path), viaIds, excludedLineIds, metrics
     })
     await db.routeSuspension.delete('active')
     restart()
@@ -107,6 +123,18 @@ export function RouteGameTab() {
 
   const revealNextHint = () => {
     setHintLevel((level) => level === 3 ? 0 : (level + 1) as HintLevel)
+  }
+
+  const startFromSearch = (conditions: RouteSearchGameConditions) => {
+    setStartId(conditions.startId)
+    setDestinationId(conditions.destinationId)
+    setViaIds(conditions.viaIds)
+    setExcludedLineIds(conditions.excludedLineIds)
+    setPath([conditions.startId])
+    setHintLevel(0)
+    setRouteExpanded(false)
+    setMessage('検索条件を引き継ぎました。検索結果は隠しています。')
+    setView('game')
   }
 
   return (
@@ -120,7 +148,7 @@ export function RouteGameTab() {
         <button className={view === 'search' ? 'active' : ''} aria-current={view === 'search' ? 'page' : undefined} onClick={() => setView('search')}><Search size={17} aria-hidden="true" />検索</button>
         <button className={view === 'history' ? 'active' : ''} aria-current={view === 'history' ? 'page' : undefined} onClick={() => setView('history')}><History size={17} aria-hidden="true" />履歴</button>
       </div>
-      {view === 'history' ? <RouteHistoryView /> : view === 'search' ? <RouteSearchView /> : <>
+      {view === 'history' ? <RouteHistoryView /> : view === 'search' ? <RouteSearchView onStartGame={startFromSearch} /> : <>
       {hideStationNames ? (
         <div className="hidden-route-endpoints">
           <span><small>出発駅</small><strong>{getStation(demoNetwork, startId)?.canonicalName}</strong></span>
@@ -131,16 +159,24 @@ export function RouteGameTab() {
       ) : (
         <div className="route-selectors">
           <label>出発駅
-            <select value={startId} onChange={(event) => { const id = event.target.value as StableId; setStartId(id); restart(id, destinationId) }}>
+            <select value={startId} onChange={(event) => { const id = event.target.value as StableId; setStartId(id); setViaIds([]); setExcludedLineIds([]); restart(id, destinationId) }}>
               {demoNetwork.stations.map((station) => <option value={station.stableId} key={station.stableId}>{station.canonicalName}</option>)}
             </select>
           </label>
           <ArrowRight size={18} aria-hidden="true" />
           <label>目的駅
-            <select value={destinationId} onChange={(event) => { const id = event.target.value as StableId; setDestinationId(id); restart(startId, id) }}>
+            <select value={destinationId} onChange={(event) => { const id = event.target.value as StableId; setDestinationId(id); setViaIds([]); setExcludedLineIds([]); restart(startId, id) }}>
               {demoNetwork.stations.map((station) => <option value={station.stableId} key={station.stableId}>{station.canonicalName}</option>)}
             </select>
           </label>
+        </div>
+      )}
+      {(viaIds.length > 0 || excludedLineIds.length > 0) && (
+        <div className="game-conditions">
+          <div><strong>引き継いだ条件</strong><span>検索結果の経路そのものは表示していません。</span></div>
+          {viaIds.length > 0 && <p><b>経由</b>{viaIds.map((id, index) => <span className={index < viaProgress ? 'done' : ''} key={id}>{index + 1}. {getStation(demoNetwork, id)?.canonicalName}</span>)}</p>}
+          {excludedLineIds.length > 0 && <p><b>使わない路線</b>{excludedLineIds.map((id) => <span key={id}>{demoNetwork.lines.find((line) => line.stableId === id)?.name}</span>)}</p>}
+          <button onClick={() => { setViaIds([]); setExcludedLineIds([]); setMessage('経由・除外条件を解除しました。') }}>条件を解除</button>
         </div>
       )}
       <div className="label-mode" aria-label="地図の表示方法">
@@ -192,12 +228,12 @@ export function RouteGameTab() {
           {hintText && <p aria-live="polite"><strong>ヒント {hintLevel}</strong>{hintText}</p>}
         </div>
         <h3>次に進める駅</h3>
-        <div className="candidate-list">
+        {candidates.length === 0 ? <p className="game-no-candidates">現在の除外条件では、この駅から進めません。条件を解除するか1操作戻してください。</p> : <div className="candidate-list">
           {candidates.map(({ stationId, edge }, index) => {
             const line = demoNetwork.lines.find((item) => item.stableId === edge.lineId)!
             return <button key={stationId} onClick={() => move(stationId)}><i style={{ background: line.color }} /><span>{hideStationNames ? `候補 ${index + 1}` : getStation(demoNetwork, stationId)?.canonicalName}</span><small>{lineLabel(line.stableId)}</small></button>
           })}
-        </div>
+        </div>}
         {arrived && <button className="primary-button confirm-button" onClick={confirm}><CheckCircle2 size={19} aria-hidden="true" />この経路で確定</button>}
         <button className="text-button" onClick={() => restart()}><RotateCcw size={16} aria-hidden="true" />最初からやり直す</button>
       </article>

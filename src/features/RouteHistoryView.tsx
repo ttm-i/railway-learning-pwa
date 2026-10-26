@@ -70,6 +70,10 @@ export function RouteHistoryView() {
                 return line && <span key={lineId}><i style={{ background: line.color }} />{line.name}</span>
               })}
             </div>
+            {(record.viaIds?.length || record.excludedLineIds?.length) && <div className="history-conditions">
+              {record.viaIds && record.viaIds.length > 0 && <span><b>経由</b>{record.viaIds.map((id) => getStation(demoNetwork, id)?.canonicalName).join(' → ')}</span>}
+              {record.excludedLineIds && record.excludedLineIds.length > 0 && <span><b>不使用</b>{record.excludedLineIds.map((id) => demoNetwork.lines.find((line) => line.stableId === id)?.name).join('・')}</span>}
+            </div>}
             <div className="history-metrics">
               <span><strong>{record.metrics.railSegments}</strong>駅間</span>
               <span><strong>{record.metrics.transfers}</strong>乗換</span>

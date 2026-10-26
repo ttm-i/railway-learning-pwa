@@ -55,4 +55,15 @@ describe('route search', () => {
     expect(candidates).toHaveLength(1)
     expect(candidates[0].kind).toBe('both')
   })
+
+  it('does not use an excluded line', () => {
+    expect(findRoute(
+      demoNetwork,
+      'demo:station:harukaze',
+      'demo:station:hoshimi',
+      [],
+      'segments',
+      ['demo:line:aozora']
+    )).toEqual([])
+  })
 })
