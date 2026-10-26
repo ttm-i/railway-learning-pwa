@@ -38,6 +38,8 @@ jobs:
         env:
           VITE_APP_CHANNEL: stable
           VITE_BASE_PATH: /railway-learning-pwa/
+      - name: Verify offline package
+        run: pnpm run verify:pwa
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v5
         with:

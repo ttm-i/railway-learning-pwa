@@ -2,12 +2,14 @@ import { useLiveQuery } from 'dexie-react-hooks'
 import { Database, Download, HardDrive, HelpCircle, ShieldCheck, WifiOff } from 'lucide-react'
 import { demoNetwork } from '../data/demoNetwork'
 import { db, storageChannel } from '../storage/db'
+import { usePwaStatus } from '../pwaStatus'
 
 interface SettingsTabProps {
   onOpenOnboarding: () => void
 }
 
 export function SettingsTab({ onOpenOnboarding }: SettingsTabProps) {
+  const pwaStatus = usePwaStatus()
   const learned = useLiveQuery(() => db.manualMastery.where('learned').equals(1).count(), []) ?? 0
   const answers = useLiveQuery(() => db.quizAnswers.count(), []) ?? 0
   const routes = useLiveQuery(() => db.routeHistory.count(), []) ?? 0
@@ -33,7 +35,11 @@ export function SettingsTab({ onOpenOnboarding }: SettingsTabProps) {
       </button>
       <article className="settings-card">
         <h2><WifiOff size={20} aria-hidden="true" />オフライン利用</h2>
-        <p>一度読み込んだ後は、アプリ本体を通信なしでも開ける構成です。iPhoneでの最終確認は今後行います。</p>
+        <dl className="offline-status-list">
+          <div><dt>現在の通信</dt><dd className={pwaStatus.online ? 'ready' : 'offline'}>{pwaStatus.online ? '通信あり' : '通信なし'}</dd></div>
+          <div><dt>オフライン準備</dt><dd className={pwaStatus.offlineReady ? 'ready' : 'waiting'}>{pwaStatus.offlineReady ? '準備完了' : pwaStatus.registrationError ? '確認できません' : '準備中'}</dd></div>
+        </dl>
+        <p>{pwaStatus.offlineReady ? '通信を切っても、保存済みの地図・クイズ・経路機能を利用できます。' : '通信がある状態でこのアプリを一度開いたままにしてください。'}</p>
       </article>
       <article className="settings-card disabled-card" aria-disabled="true">
         <h2><Download size={20} aria-hidden="true" />バックアップ</h2>

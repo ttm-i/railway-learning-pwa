@@ -13,7 +13,7 @@ export default defineConfig(({ mode }) => {
       react(),
       VitePWA({
         registerType: 'autoUpdate',
-        includeAssets: ['railway-icon.svg'],
+        includeAssets: ['railway-icon.svg', 'railway-icon-180.png', 'railway-icon-192.png', 'railway-icon-512.png'],
         manifest: {
           name: channel === 'stable' ? '首都圏鉄道学習' : `首都圏鉄道学習 (${channel})`,
           short_name: '鉄道学習',
@@ -26,9 +26,15 @@ export default defineConfig(({ mode }) => {
           lang: 'ja',
           icons: [
             {
-              src: `${base}railway-icon.svg`,
-              sizes: 'any',
-              type: 'image/svg+xml',
+              src: `${base}railway-icon-192.png`,
+              sizes: '192x192',
+              type: 'image/png',
+              purpose: 'any'
+            },
+            {
+              src: `${base}railway-icon-512.png`,
+              sizes: '512x512',
+              type: 'image/png',
               purpose: 'any maskable'
             }
           ]

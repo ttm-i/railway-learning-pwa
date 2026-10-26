@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { BookOpenCheck, Map, Route, Settings } from 'lucide-react'
 import { DemoNotice } from './components/DemoNotice'
 import { Onboarding } from './components/Onboarding'
+import { PwaStatusNotice } from './components/PwaStatusNotice'
 import { MapTab } from './features/MapTab'
 import { QuizTab } from './features/QuizTab'
 import { RouteGameTab } from './features/RouteGameTab'
@@ -26,6 +27,7 @@ export default function App() {
   return (
     <div className="app-shell">
       <DemoNotice />
+      <PwaStatusNotice />
       <main>
         {tab === 'map' && <MapTab />}
         {tab === 'route' && <RouteGameTab />}

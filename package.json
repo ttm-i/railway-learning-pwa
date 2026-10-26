@@ -5,6 +5,8 @@
   "packageManager": "pnpm@11.25.0",
   "type": "module",
   "scripts": {
+    "generate:icons": "node scripts/generate-pwa-icons.mjs",
+    "verify:pwa": "node scripts/verify-pwa-build.mjs",
     "dev": "vite",
     "build": "tsc -b && vite build",
     "preview": "vite preview",
