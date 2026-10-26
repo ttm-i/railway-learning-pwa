@@ -1,12 +1,14 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useLiveQuery } from 'dexie-react-hooks'
-import { ArrowRight, CheckCircle2, ChevronDown, Flag, Lightbulb, List, RotateCcw, Scissors, Undo2 } from 'lucide-react'
+import { ArrowRight, CheckCircle2, ChevronDown, Flag, Gamepad2, History, Lightbulb, List, RotateCcw, Scissors, Undo2 } from 'lucide-react'
 import { RailMap } from '../components/RailMap'
 import { demoNetwork } from '../data/demoNetwork'
 import { calculateMetrics, getNeighbors, getStation, isValidPath } from '../domain/graph'
 import { getHintText, type HintLevel, type RouteLabelMode } from '../domain/routeGame'
+import { getRouteLineIds } from '../domain/routeHistory'
 import type { StableId } from '../domain/types'
 import { db } from '../storage/db'
+import { RouteHistoryView } from './RouteHistoryView'
 
 const initialStart: StableId = 'demo:station:harukaze'
 const initialDestination: StableId = 'demo:station:hoshimi'
@@ -29,6 +31,7 @@ export function RouteGameTab() {
   const [labelMode, setLabelMode] = useState<RouteLabelMode>('all')
   const [hintLevel, setHintLevel] = useState<HintLevel>(0)
   const [routeExpanded, setRouteExpanded] = useState(false)
+  const [view, setView] = useState<'game' | 'history'>('game')
   const [restored, setRestored] = useState(false)
   const historyCount = useLiveQuery(() => db.routeHistory.count(), []) ?? 0
 
@@ -93,7 +96,8 @@ export function RouteGameTab() {
   const confirm = async () => {
     if (!arrived) return
     await db.routeHistory.add({
-      id: crypto.randomUUID(), createdAt: new Date().toISOString(), datasetVersion: demoNetwork.version, path, metrics
+      id: crypto.randomUUID(), createdAt: new Date().toISOString(), datasetVersion: demoNetwork.version,
+      path, lineIds: getRouteLineIds(demoNetwork, path), metrics
     })
     await db.routeSuspension.delete('active')
     restart()
@@ -107,9 +111,14 @@ export function RouteGameTab() {
   return (
     <section className="screen" aria-labelledby="route-title">
       <header className="screen-heading">
-        <div><span className="eyebrow">自分で組み立てる</span><h1 id="route-title">基本経路ゲーム</h1></div>
+        <div><span className="eyebrow">組み立てる・振り返る</span><h1 id="route-title">経路</h1></div>
         <span className="data-pill">記録 {historyCount}件</span>
       </header>
+      <div className="route-section-tabs" aria-label="経路メニュー">
+        <button className={view === 'game' ? 'active' : ''} aria-current={view === 'game' ? 'page' : undefined} onClick={() => setView('game')}><Gamepad2 size={17} aria-hidden="true" />ゲーム</button>
+        <button className={view === 'history' ? 'active' : ''} aria-current={view === 'history' ? 'page' : undefined} onClick={() => setView('history')}><History size={17} aria-hidden="true" />履歴</button>
+      </div>
+      {view === 'history' ? <RouteHistoryView /> : <>
       {hideStationNames ? (
         <div className="hidden-route-endpoints">
           <span><small>出発駅</small><strong>{getStation(demoNetwork, startId)?.canonicalName}</strong></span>
@@ -190,6 +199,7 @@ export function RouteGameTab() {
         {arrived && <button className="primary-button confirm-button" onClick={confirm}><CheckCircle2 size={19} aria-hidden="true" />この経路で確定</button>}
         <button className="text-button" onClick={() => restart()}><RotateCcw size={16} aria-hidden="true" />最初からやり直す</button>
       </article>
+      </>}
     </section>
   )
 }

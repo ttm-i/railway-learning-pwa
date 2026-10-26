@@ -51,6 +51,7 @@ export interface RouteHistoryRecord {
   createdAt: string
   datasetVersion: string
   path: StableId[]
+  lineIds?: StableId[]
   metrics: RouteMetrics
 }
 
