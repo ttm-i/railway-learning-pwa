@@ -1,9 +1,13 @@
 import { useLiveQuery } from 'dexie-react-hooks'
-import { Database, Download, HardDrive, ShieldCheck, WifiOff } from 'lucide-react'
+import { Database, Download, HardDrive, HelpCircle, ShieldCheck, WifiOff } from 'lucide-react'
 import { demoNetwork } from '../data/demoNetwork'
 import { db, storageChannel } from '../storage/db'
 
-export function SettingsTab() {
+interface SettingsTabProps {
+  onOpenOnboarding: () => void
+}
+
+export function SettingsTab({ onOpenOnboarding }: SettingsTabProps) {
   const learned = useLiveQuery(() => db.manualMastery.where('learned').equals(1).count(), []) ?? 0
   const answers = useLiveQuery(() => db.quizAnswers.count(), []) ?? 0
   const routes = useLiveQuery(() => db.routeHistory.count(), []) ?? 0
@@ -24,6 +28,9 @@ export function SettingsTab() {
           <div><dt>保存領域</dt><dd>{storageChannel}</dd></div>
         </dl>
       </article>
+      <button className="settings-action" onClick={onOpenOnboarding}>
+        <HelpCircle size={20} aria-hidden="true" /><span><strong>最初の案内をもう一度見る</strong><small>使い方と学習地域を確認します</small></span>
+      </button>
       <article className="settings-card">
         <h2><WifiOff size={20} aria-hidden="true" />オフライン利用</h2>
         <p>一度読み込んだ後は、アプリ本体を通信なしでも開ける構成です。iPhoneでの最終確認は今後行います。</p>

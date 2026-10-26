@@ -4,13 +4,14 @@ import { findEdge } from '../domain/graph'
 
 interface RailMapProps {
   selectedStationId?: StableId
+  selectedLineId?: StableId
   route?: StableId[]
   destinationId?: StableId
   candidateIds?: StableId[]
   onSelectStation?: (stationId: StableId) => void
 }
 
-export function RailMap({ selectedStationId, route = [], destinationId, candidateIds = [], onSelectStation }: RailMapProps) {
+export function RailMap({ selectedStationId, selectedLineId, route = [], destinationId, candidateIds = [], onSelectStation }: RailMapProps) {
   const routePairs = route.slice(1).map((to, index) => ({ from: route[index], to }))
 
   return (
@@ -30,7 +31,7 @@ export function RailMap({ selectedStationId, route = [], destinationId, candidat
               x2={to.x}
               y2={to.y}
               stroke={line.color}
-              className="rail-line"
+              className={`rail-line ${selectedLineId === line.stableId ? 'selected-line' : ''}`}
             />
           )
         })}
