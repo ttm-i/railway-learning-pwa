@@ -1,6 +1,7 @@
 import Dexie, { type EntityTable } from 'dexie'
 import type { RouteMetrics, StableId } from '../domain/types'
 import type { QuizFormat } from '../domain/quiz'
+import type { HintLevel, RouteLabelMode } from '../domain/routeGame'
 
 export interface SettingRecord {
   key: string
@@ -38,6 +39,9 @@ export interface RouteSuspensionRecord {
   startId: StableId
   destinationId: StableId
   path: StableId[]
+  labelMode?: RouteLabelMode
+  hintLevel?: HintLevel
+  routeExpanded?: boolean
   datasetVersion: string
   updatedAt: string
 }
