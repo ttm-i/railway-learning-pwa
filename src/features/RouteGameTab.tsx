@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useLiveQuery } from 'dexie-react-hooks'
-import { ArrowRight, CheckCircle2, ChevronDown, Flag, Gamepad2, History, Lightbulb, List, RotateCcw, Scissors, Undo2 } from 'lucide-react'
+import { ArrowRight, CheckCircle2, ChevronDown, Flag, Gamepad2, History, Lightbulb, List, RotateCcw, Scissors, Search, Undo2 } from 'lucide-react'
 import { RailMap } from '../components/RailMap'
 import { demoNetwork } from '../data/demoNetwork'
 import { calculateMetrics, getNeighbors, getStation, isValidPath } from '../domain/graph'
@@ -9,6 +9,7 @@ import { getRouteLineIds } from '../domain/routeHistory'
 import type { StableId } from '../domain/types'
 import { db } from '../storage/db'
 import { RouteHistoryView } from './RouteHistoryView'
+import { RouteSearchView } from './RouteSearchView'
 
 const initialStart: StableId = 'demo:station:harukaze'
 const initialDestination: StableId = 'demo:station:hoshimi'
@@ -31,7 +32,7 @@ export function RouteGameTab() {
   const [labelMode, setLabelMode] = useState<RouteLabelMode>('all')
   const [hintLevel, setHintLevel] = useState<HintLevel>(0)
   const [routeExpanded, setRouteExpanded] = useState(false)
-  const [view, setView] = useState<'game' | 'history'>('game')
+  const [view, setView] = useState<'game' | 'search' | 'history'>('game')
   const [restored, setRestored] = useState(false)
   const historyCount = useLiveQuery(() => db.routeHistory.count(), []) ?? 0
 
@@ -116,9 +117,10 @@ export function RouteGameTab() {
       </header>
       <div className="route-section-tabs" aria-label="経路メニュー">
         <button className={view === 'game' ? 'active' : ''} aria-current={view === 'game' ? 'page' : undefined} onClick={() => setView('game')}><Gamepad2 size={17} aria-hidden="true" />ゲーム</button>
+        <button className={view === 'search' ? 'active' : ''} aria-current={view === 'search' ? 'page' : undefined} onClick={() => setView('search')}><Search size={17} aria-hidden="true" />検索</button>
         <button className={view === 'history' ? 'active' : ''} aria-current={view === 'history' ? 'page' : undefined} onClick={() => setView('history')}><History size={17} aria-hidden="true" />履歴</button>
       </div>
-      {view === 'history' ? <RouteHistoryView /> : <>
+      {view === 'history' ? <RouteHistoryView /> : view === 'search' ? <RouteSearchView /> : <>
       {hideStationNames ? (
         <div className="hidden-route-endpoints">
           <span><small>出発駅</small><strong>{getStation(demoNetwork, startId)?.canonicalName}</strong></span>
