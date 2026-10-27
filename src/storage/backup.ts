@@ -3,6 +3,7 @@ import { demoNetwork } from '../data/demoNetwork'
 import { db, storageChannel, type ManualMasteryRecord, type QuizAnswerRecord, type QuizSuspensionRecord, type RouteHistoryRecord, type RouteSuspensionRecord, type SettingRecord } from './db'
 
 export const backupSchemaVersion = 1
+export const maximumBackupFileBytes = 20 * 1024 * 1024
 
 export interface RailwayLearningBackup {
   schemaVersion: number
@@ -17,6 +18,78 @@ export interface RailwayLearningBackup {
     quizSuspension: QuizSuspensionRecord[]
     routeSuspension: RouteSuspensionRecord[]
     routeHistory: RouteHistoryRecord[]
+  }
+}
+
+export interface BackupPreview {
+  exportedAt: string
+  appVersion: string
+  storageChannel: string
+  datasetVersions: string[]
+  counts: {
+    learnedStations: number
+    quizAnswers: number
+    routeHistory: number
+    favorites: number
+    suspendedActivities: number
+  }
+}
+
+export class BackupValidationError extends Error {}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return Boolean(value && typeof value === 'object' && !Array.isArray(value))
+}
+
+function isArrayOf(value: unknown, validate: (item: Record<string, unknown>) => boolean) {
+  return Array.isArray(value) && value.every((item) => isRecord(item) && validate(item))
+}
+
+export function parseBackupPreview(text: string): BackupPreview {
+  let value: unknown
+  try {
+    value = JSON.parse(text)
+  } catch {
+    throw new BackupValidationError('JSONファイルとして読み取れませんでした。')
+  }
+  if (!isRecord(value)) throw new BackupValidationError('バックアップの基本形式が正しくありません。')
+  if (value.schemaVersion !== backupSchemaVersion) throw new BackupValidationError('対応していないバックアップ形式です。')
+  if (typeof value.exportedAt !== 'string' || Number.isNaN(Date.parse(value.exportedAt))) throw new BackupValidationError('書き出し日時を確認できません。')
+  if (typeof value.appVersion !== 'string' || typeof value.storageChannel !== 'string') throw new BackupValidationError('アプリ情報を確認できません。')
+  if (!Array.isArray(value.datasetVersions) || !value.datasetVersions.every((item) => typeof item === 'string')) throw new BackupValidationError('鉄道データ版を確認できません。')
+  if (!isRecord(value.data)) throw new BackupValidationError('記録データが見つかりません。')
+
+  const data = value.data
+  const valid = (
+    isArrayOf(data.settings, (item) => typeof item.key === 'string')
+    && isArrayOf(data.manualMastery, (item) => typeof item.stationId === 'string' && typeof item.learned === 'boolean' && typeof item.updatedAt === 'string')
+    && isArrayOf(data.quizAnswers, (item) => typeof item.id === 'string' && typeof item.datasetVersion === 'string')
+    && isArrayOf(data.quizSuspension, (item) => item.id === 'active' && typeof item.datasetVersion === 'string')
+    && isArrayOf(data.routeSuspension, (item) => item.id === 'active' && typeof item.datasetVersion === 'string')
+    && isArrayOf(data.routeHistory, (item) => typeof item.id === 'string' && typeof item.datasetVersion === 'string')
+  )
+  if (!valid) throw new BackupValidationError('必要な記録の一部が不足しているか、形式が正しくありません。')
+
+  const settings = data.settings as unknown as SettingRecord[]
+  const manualMastery = data.manualMastery as unknown as ManualMasteryRecord[]
+  const quizAnswers = data.quizAnswers as unknown as QuizAnswerRecord[]
+  const quizSuspension = data.quizSuspension as unknown as QuizSuspensionRecord[]
+  const routeSuspension = data.routeSuspension as unknown as RouteSuspensionRecord[]
+  const routeHistory = data.routeHistory as unknown as RouteHistoryRecord[]
+  const favoritesValue = settings.find((record) => record.key === 'routeSearchFavorites')?.value
+
+  return {
+    exportedAt: value.exportedAt,
+    appVersion: value.appVersion,
+    storageChannel: value.storageChannel,
+    datasetVersions: value.datasetVersions,
+    counts: {
+      learnedStations: manualMastery.filter((record) => record.learned).length,
+      quizAnswers: quizAnswers.length,
+      routeHistory: routeHistory.length,
+      favorites: Array.isArray(favoritesValue) ? favoritesValue.length : 0,
+      suspendedActivities: quizSuspension.length + routeSuspension.length
+    }
   }
 }
 

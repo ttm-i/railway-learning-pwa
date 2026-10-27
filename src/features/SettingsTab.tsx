@@ -1,9 +1,9 @@
 import { useState } from 'react'
 import { useLiveQuery } from 'dexie-react-hooks'
-import { Database, Download, HardDrive, HelpCircle, ShieldCheck, WifiOff } from 'lucide-react'
+import { Database, Download, FileSearch, HardDrive, HelpCircle, ShieldCheck, WifiOff } from 'lucide-react'
 import { demoNetwork } from '../data/demoNetwork'
 import { db, storageChannel } from '../storage/db'
-import { createBackup, createBackupFile, presentBackupFile } from '../storage/backup'
+import { BackupValidationError, createBackup, createBackupFile, maximumBackupFileBytes, parseBackupPreview, presentBackupFile, type BackupPreview } from '../storage/backup'
 import { usePwaStatus } from '../pwaStatus'
 
 interface SettingsTabProps {
@@ -17,6 +17,8 @@ export function SettingsTab({ onOpenOnboarding }: SettingsTabProps) {
   const routes = useLiveQuery(() => db.routeHistory.count(), []) ?? 0
   const [backupWorking, setBackupWorking] = useState(false)
   const [backupMessage, setBackupMessage] = useState('')
+  const [backupPreview, setBackupPreview] = useState<BackupPreview | null>(null)
+  const [previewMessage, setPreviewMessage] = useState('')
 
   const exportBackup = async () => {
     setBackupWorking(true)
@@ -35,6 +37,24 @@ export function SettingsTab({ onOpenOnboarding }: SettingsTabProps) {
       setBackupWorking(false)
     }
   }
+
+  const inspectBackup = async (file: File) => {
+    setBackupPreview(null)
+    setPreviewMessage('')
+    if (file.size > maximumBackupFileBytes) {
+      setPreviewMessage('ファイルが大きすぎます。20MB以下のバックアップを選んでください。')
+      return
+    }
+    try {
+      setBackupPreview(parseBackupPreview(await file.text()))
+    } catch (error) {
+      setPreviewMessage(error instanceof BackupValidationError ? error.message : 'ファイルを読み取れませんでした。')
+    }
+  }
+
+  const formatBackupDate = (value: string) => new Intl.DateTimeFormat('ja-JP', {
+    year: 'numeric', month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit'
+  }).format(new Date(value))
 
   return (
     <section className="screen" aria-labelledby="settings-title">
@@ -68,6 +88,22 @@ export function SettingsTab({ onOpenOnboarding }: SettingsTabProps) {
         <p>学習記録・クイズ・経路・お気に入りを1つのJSONファイルにまとめます。書き出すだけなので、端末内の記録は変更しません。</p>
         <button className="backup-export-button" disabled={backupWorking} onClick={() => void exportBackup()}><Download size={17} aria-hidden="true" />{backupWorking ? '準備しています…' : 'バックアップを書き出す'}</button>
         <p className="backup-message" aria-live="polite">{backupMessage}</p>
+        <div className="backup-divider"><span>保存済みファイルの確認</span></div>
+        <label className="backup-inspect-button"><FileSearch size={17} aria-hidden="true" />バックアップファイルを確認する<input type="file" accept="application/json,.json" onChange={(event) => { const file = event.target.files?.[0]; if (file) void inspectBackup(file); event.target.value = '' }} /></label>
+        {previewMessage && <p className="backup-preview-error" role="alert">{previewMessage}</p>}
+        {backupPreview && <div className="backup-preview" aria-label="バックアップ内容の確認結果">
+          <strong>ファイル内容（確認のみ）</strong>
+          <dl>
+            <div><dt>書き出し日時</dt><dd>{formatBackupDate(backupPreview.exportedAt)}</dd></div>
+            <div><dt>覚えた駅</dt><dd>{backupPreview.counts.learnedStations}件</dd></div>
+            <div><dt>クイズ回答</dt><dd>{backupPreview.counts.quizAnswers}件</dd></div>
+            <div><dt>経路記録</dt><dd>{backupPreview.counts.routeHistory}件</dd></div>
+            <div><dt>お気に入り</dt><dd>{backupPreview.counts.favorites}件</dd></div>
+            <div><dt>途中状態</dt><dd>{backupPreview.counts.suspendedActivities}件</dd></div>
+            <div><dt>アプリ版</dt><dd>{backupPreview.appVersion}</dd></div>
+          </dl>
+          <p>内容を表示しただけで、端末内のデータは変更していません。</p>
+        </div>}
         <small>復元機能は、安全な確認手順と統合規則を決めてから追加します。</small>
       </article>
       <p className="storage-note"><HardDrive size={16} aria-hidden="true" /><Database size={16} aria-hidden="true" />学習記録はこの端末のブラウザ内に保存されます。</p>

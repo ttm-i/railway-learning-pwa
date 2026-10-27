@@ -1,6 +1,7 @@
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { db } from '../storage/db'
+import { createBackup, createBackupFile } from '../storage/backup'
 import { SettingsTab } from './SettingsTab'
 
 const tables = [db.settings, db.manualMastery, db.quizAnswers, db.quizSuspension, db.routeSuspension, db.routeHistory]
@@ -38,5 +39,20 @@ describe('SettingsTab backup', () => {
     expect(sharedFile.type).toBe('application/json')
     expect(await db.quizAnswers.count()).toBe(1)
     expect(await screen.findByText('共有メニューを閉じました。選んだ保存先にファイルがあるかご確認ください。')).toBeInTheDocument()
+  })
+
+  it('previews a selected backup without restoring it', async () => {
+    await db.manualMastery.put({ stationId: 'demo:station:sakura', learned: true, updatedAt: '2026-10-27T00:00:00.000Z' })
+    const backup = await createBackup('2026-10-27T12:34:56.000Z')
+    const file = createBackupFile(backup)
+    Object.defineProperty(file, 'text', { value: async () => JSON.stringify(backup) })
+
+    render(<SettingsTab onOpenOnboarding={vi.fn()} />)
+    fireEvent.change(screen.getByLabelText('バックアップファイルを確認する'), { target: { files: [file] } })
+
+    const preview = await screen.findByLabelText('バックアップ内容の確認結果')
+    expect(preview).toHaveTextContent('覚えた駅1件')
+    expect(preview).toHaveTextContent('内容を表示しただけで、端末内のデータは変更していません。')
+    expect(await db.manualMastery.count()).toBe(1)
   })
 })
