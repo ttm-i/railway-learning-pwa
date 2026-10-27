@@ -21,7 +21,7 @@
 - `routeHistory`: immutable result UUID, createdAt, datasetVersion, conditions, ordered traversals, service transitions, metrics, successState, latestValidationResult (optional, separately saved)。
 - `favorites`: named quiz/route presets, IDs and user-editable metadata。
 - `backupMetadata`: export attempts (not proof of external file completion), reminders, lastImport, beforeImportSnapshot reference。
-- `deletedRecordTombstones`: UUID, deletedAt, type — merge時の削除済み履歴復活を避けるための設計候補（実装方針はopen-issues）。
+- `deletedRecordTombstones`: type＋recordIdの安定ID, recordId, deletedAt, type。経路履歴と検索条件お気に入りの削除を記録し、統合時の復活を防ぐ。新形式バックアップに含める。
 
 ## 保存の原則
 - ネットワーク更新とユーザー記録更新は別トランザクション。壊れたネットワーク更新はロールバック。

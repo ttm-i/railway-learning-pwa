@@ -292,6 +292,11 @@ main { padding-bottom: calc(92px + env(safe-area-inset-bottom)); }
 .settings-card .backup-preview p { margin-top: 7px; color: #175541; font-size: .65rem; font-weight: 800; line-height: 1.5; }
 .restore-start-button, .restore-confirm button, .restore-recovery button { min-height: 40px; padding: 8px 11px; border: 0; border-radius: 10px; color: #fff; background: var(--green); font: inherit; font-size: .68rem; font-weight: 800; }
 .restore-start-button { width: 100%; margin-top: 10px; }
+.restore-mode-buttons { display: grid; grid-template-columns: 1fr 1fr; gap: 7px; margin-top: 10px; }
+.restore-mode-buttons button { min-height: 42px; padding: 8px; border: 1px solid var(--green); border-radius: 10px; color: var(--green); background: #fff; font: inherit; font-size: .67rem; font-weight: 800; }
+.restore-mode-buttons button:last-child { color: #fff; background: var(--green); }
+.restore-mode-buttons button:disabled { opacity: .42; }
+.settings-card .backup-preview p.merge-unavailable { color: var(--muted); font-weight: 600; }
 .restore-confirm { display: grid; gap: 7px; margin-top: 10px; padding: 10px; border: 1px solid #e0b77e; border-radius: 10px; color: #704319; background: #fff7e9; }
 .restore-confirm > strong { font-size: .7rem; }
 .restore-confirm > span { font-size: .64rem; line-height: 1.5; }
@@ -356,6 +361,8 @@ main { padding-bottom: calc(92px + env(safe-area-inset-bottom)); }
   .backup-preview { background: #173b31; border-color: #285648; }
   .backup-preview > strong, .settings-card .backup-preview p { color: #c5f0dc; }
   .restore-confirm { color: #ffe2b6; background: #49341f; border-color: #74512e; }
+  .restore-mode-buttons button { color: #b9eadb; background: #16241f; border-color: #377666; }
+  .restore-mode-buttons button:last-child { color: #fff; background: var(--green); }
   .restore-confirm button.secondary, .restore-confirm-actions button.secondary { color: #b9eadb; background: #16241f; border-color: #377666; }
   .restore-recovery { color: #c5f0dc; background: #173b31; border-color: #285648; }
   .settings-card p.backup-preview-error { color: #ffd2cd; background: #492925; }

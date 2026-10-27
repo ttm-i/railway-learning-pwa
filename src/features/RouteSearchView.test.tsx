@@ -7,12 +7,14 @@ describe('RouteSearchView', () => {
   beforeEach(async () => {
     await db.settings.delete('routeSearchOptions')
     await db.settings.delete('routeSearchFavorites')
+    await db.deletedRecords.clear()
   })
 
   afterEach(async () => {
     cleanup()
     await db.settings.delete('routeSearchOptions')
     await db.settings.delete('routeSearchFavorites')
+    await db.deletedRecords.clear()
   })
 
   it('shows a candidate, applies an ordered via station, and saves conditions', async () => {
@@ -71,5 +73,6 @@ describe('RouteSearchView', () => {
       const record = await db.settings.get('routeSearchFavorites')
       expect(record?.value).toEqual([])
     })
+    expect((await db.deletedRecords.where('recordType').equals('routeSearchFavorite').first())?.recordId).toBeTruthy()
   })
 })

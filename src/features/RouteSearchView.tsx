@@ -6,7 +6,7 @@ import { demoNetwork } from '../data/demoNetwork'
 import { findEdge, getStation } from '../domain/graph'
 import { findRouteCandidates } from '../domain/routeSearch'
 import type { StableId } from '../domain/types'
-import { db } from '../storage/db'
+import { createDeletedRecordTombstone, db } from '../storage/db'
 
 interface SavedRouteSearchOptions {
   startId: StableId
@@ -145,7 +145,10 @@ export function RouteSearchView({ onStartGame }: { onStartGame?: (conditions: Ro
   }
 
   const deleteFavorite = async (favorite: RouteSearchFavorite) => {
-    await db.settings.put({ key: 'routeSearchFavorites', value: favorites.filter((item) => item.id !== favorite.id) })
+    await db.transaction('rw', [db.settings, db.deletedRecords], async () => {
+      await db.settings.put({ key: 'routeSearchFavorites', value: favorites.filter((item) => item.id !== favorite.id) })
+      await db.deletedRecords.put(createDeletedRecordTombstone('routeSearchFavorite', favorite.id))
+    })
     setFavoriteMessage(`「${favorite.name}」を削除しました。`)
     setPendingDeleteId(null)
   }

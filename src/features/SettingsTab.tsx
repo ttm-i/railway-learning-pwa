@@ -3,7 +3,7 @@ import { useLiveQuery } from 'dexie-react-hooks'
 import { AlertTriangle, CheckCircle2, Database, Download, FileSearch, HardDrive, HelpCircle, RotateCcw, ShieldCheck, WifiOff } from 'lucide-react'
 import { demoNetwork } from '../data/demoNetwork'
 import { db, storageChannel } from '../storage/db'
-import { BackupValidationError, countRecordsSinceBackup, createBackup, createBackupFile, createBackupMetadata, createBackupPreview, getBackupMetadata, getBackupRestoreBlockReason, getRecoverySnapshot, maximumBackupFileBytes, parseBackup, presentBackupFile, recoverySnapshotSettingKey, replaceWithBackup, restoreRecoverySnapshot, shouldShowBackupReminder, type BackupPreview, type RailwayLearningBackup } from '../storage/backup'
+import { BackupValidationError, countRecordsSinceBackup, createBackup, createBackupFile, createBackupMetadata, createBackupPreview, getBackupMergeBlockReason, getBackupMetadata, getBackupRestoreBlockReason, getRecoverySnapshot, maximumBackupFileBytes, mergeWithBackup, parseBackup, presentBackupFile, recoverySnapshotSettingKey, replaceWithBackup, restoreRecoverySnapshot, shouldShowBackupReminder, type BackupPreview, type RailwayLearningBackup } from '../storage/backup'
 import { usePwaStatus } from '../pwaStatus'
 import { checkStorageHealth, formatStorageBytes, type StorageHealthResult } from '../storage/storageHealth'
 
@@ -24,7 +24,8 @@ export function SettingsTab({ onOpenOnboarding }: SettingsTabProps) {
   const [previewMessage, setPreviewMessage] = useState('')
   const [restoreCandidate, setRestoreCandidate] = useState<{ backup: RailwayLearningBackup, fileName: string } | null>(null)
   const [restoreBlockReason, setRestoreBlockReason] = useState('')
-  const [restoreConfirm, setRestoreConfirm] = useState(false)
+  const [mergeBlockReason, setMergeBlockReason] = useState('')
+  const [restoreMode, setRestoreMode] = useState<'replace' | 'merge' | null>(null)
   const [restoreWorking, setRestoreWorking] = useState(false)
   const [restoreMessage, setRestoreMessage] = useState('')
   const [undoConfirm, setUndoConfirm] = useState(false)
@@ -66,7 +67,8 @@ export function SettingsTab({ onOpenOnboarding }: SettingsTabProps) {
     setPreviewMessage('')
     setRestoreCandidate(null)
     setRestoreBlockReason('')
-    setRestoreConfirm(false)
+    setMergeBlockReason('')
+    setRestoreMode(null)
     setRestoreMessage('')
     if (file.size > maximumBackupFileBytes) {
       setPreviewMessage('ファイルが大きすぎます。20MB以下のバックアップを選んでください。')
@@ -77,6 +79,7 @@ export function SettingsTab({ onOpenOnboarding }: SettingsTabProps) {
       setBackupPreview(createBackupPreview(backup))
       setRestoreCandidate({ backup, fileName: file.name })
       setRestoreBlockReason(getBackupRestoreBlockReason(backup) ?? '')
+      setMergeBlockReason(getBackupMergeBlockReason(backup) ?? '')
     } catch (error) {
       setPreviewMessage(error instanceof BackupValidationError ? error.message : 'ファイルを読み取れませんでした。')
     }
@@ -89,13 +92,32 @@ export function SettingsTab({ onOpenOnboarding }: SettingsTabProps) {
     try {
       await replaceWithBackup(restoreCandidate.backup, restoreCandidate.fileName)
       setRestoreMessage('バックアップの内容へ置き換えました。復元前の状態は、この端末内に退避しています。')
-      setRestoreConfirm(false)
+      setRestoreMode(null)
       setRestoreCandidate(null)
       setBackupPreview(null)
     } catch (error) {
       setRestoreMessage(error instanceof BackupValidationError
         ? error.message
         : '復元できませんでした。現在の記録は変更していません。')
+    } finally {
+      setRestoreWorking(false)
+    }
+  }
+
+  const mergeBackup = async () => {
+    if (!restoreCandidate || restoreBlockReason || mergeBlockReason) return
+    setRestoreWorking(true)
+    setRestoreMessage('')
+    try {
+      const result = await mergeWithBackup(restoreCandidate.backup, restoreCandidate.fileName)
+      setRestoreMessage(`統合しました。追加${result.addedRecords}件・習得状態の更新${result.updatedMastery}件・削除済みの復活防止${result.preventedDeletedRecords}件・現在側を残した競合${result.ignoredConflicts}件です。`)
+      setRestoreMode(null)
+      setRestoreCandidate(null)
+      setBackupPreview(null)
+    } catch (error) {
+      setRestoreMessage(error instanceof BackupValidationError
+        ? error.message
+        : '統合できませんでした。現在の記録は変更していません。')
     } finally {
       setRestoreWorking(false)
     }
@@ -207,20 +229,28 @@ export function SettingsTab({ onOpenOnboarding }: SettingsTabProps) {
             <div><dt>お気に入り</dt><dd>{backupPreview.counts.favorites}件</dd></div>
             <div><dt>途中状態</dt><dd>{backupPreview.counts.suspendedActivities}件</dd></div>
             <div><dt>アプリ版</dt><dd>{backupPreview.appVersion}</dd></div>
+            <div><dt>ファイル形式</dt><dd>{backupPreview.schemaVersion >= 2 ? '新形式（統合対応）' : '従来形式（置き換えのみ）'}</dd></div>
           </dl>
           <p>この時点では、端末内のデータは変更していません。</p>
           {restoreBlockReason
             ? <p className="restore-blocked" role="alert">{restoreBlockReason}</p>
-            : !restoreConfirm
-              ? <button className="restore-start-button" onClick={() => setRestoreConfirm(true)}>復元の確認へ</button>
-              : <div className="restore-confirm">
+            : restoreMode === null
+              ? <>
+                <div className="restore-mode-buttons"><button onClick={() => setRestoreMode('replace')}>置き換えの確認へ</button><button disabled={Boolean(mergeBlockReason)} onClick={() => setRestoreMode('merge')}>統合の確認へ</button></div>
+                {mergeBlockReason && <p className="merge-unavailable">{mergeBlockReason}</p>}
+              </>
+              : restoreMode === 'replace' ? <div className="restore-confirm">
                 <strong>現在の記録を、このファイルの内容へ置き換えます</strong>
                 <span>実行前の状態は自動で退避します。記録を混ぜ合わせる操作ではありません。</span>
-                <div><button className="secondary" onClick={() => setRestoreConfirm(false)}>やめる</button><button disabled={restoreWorking} onClick={() => void restoreBackup()}>{restoreWorking ? '復元しています…' : '退避して置き換える'}</button></div>
+                <div><button className="secondary" onClick={() => setRestoreMode(null)}>やめる</button><button disabled={restoreWorking} onClick={() => void restoreBackup()}>{restoreWorking ? '復元しています…' : '退避して置き換える'}</button></div>
+              </div> : <div className="restore-confirm merge-confirm">
+                <strong>現在の記録を残し、安全なルールで統合します</strong>
+                <span>端末の設定と進行中の学習は維持し、履歴の重複や削除済み記録の復活を防ぎます。実行前の状態は自動で退避します。</span>
+                <div><button className="secondary" onClick={() => setRestoreMode(null)}>やめる</button><button disabled={restoreWorking} onClick={() => void mergeBackup()}>{restoreWorking ? '統合しています…' : '退避して統合する'}</button></div>
               </div>}
         </div>}
         <p className="restore-message" role="status" aria-live="polite">{restoreMessage}</p>
-        <small>現在は安全性を優先し、「置き換え」のみ利用できます。記録を混ぜる「統合」は未対応です。</small>
+        <small>「統合」は新形式のバックアップで利用できます。従来形式は、安全のため「置き換え」のみ対応します。</small>
       </article>
       <p className="storage-note"><HardDrive size={16} aria-hidden="true" /><Database size={16} aria-hidden="true" />学習記録はこの端末のブラウザ内に保存されます。</p>
     </section>

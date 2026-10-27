@@ -1,4 +1,4 @@
-import { cleanup, fireEvent, render, screen } from '@testing-library/react'
+import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { RouteHistoryView } from './RouteHistoryView'
 import { db } from '../storage/db'
@@ -6,6 +6,7 @@ import { db } from '../storage/db'
 describe('RouteHistoryView', () => {
   beforeEach(async () => {
     await db.routeHistory.clear()
+    await db.deletedRecords.clear()
     await db.routeHistory.add({
       id: 'history-test',
       createdAt: '2026-10-27T06:00:00.000Z',
@@ -24,6 +25,7 @@ describe('RouteHistoryView', () => {
   afterEach(async () => {
     cleanup()
     await db.routeHistory.clear()
+    await db.deletedRecords.clear()
   })
 
   it('searches, expands, and asks before deleting a record', async () => {
@@ -43,5 +45,9 @@ describe('RouteHistoryView', () => {
     expect(screen.getByText('削除すると元に戻せません。')).toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: 'やめる' }))
     expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('button', { name: 'この記録を削除' }))
+    fireEvent.click(screen.getByRole('button', { name: '削除する' }))
+    await waitFor(async () => expect(await db.deletedRecords.get('routeHistory:history-test')).toMatchObject({ recordId: 'history-test' }))
   })
 })

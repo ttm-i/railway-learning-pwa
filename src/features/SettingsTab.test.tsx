@@ -4,7 +4,7 @@ import { db } from '../storage/db'
 import { createBackup, createBackupFile } from '../storage/backup'
 import { SettingsTab } from './SettingsTab'
 
-const tables = [db.settings, db.manualMastery, db.quizAnswers, db.quizSuspension, db.routeSuspension, db.routeHistory]
+const tables = [db.settings, db.manualMastery, db.quizAnswers, db.quizSuspension, db.routeSuspension, db.routeHistory, db.deletedRecords]
 
 describe('SettingsTab backup', () => {
   const originalShare = Object.getOwnPropertyDescriptor(navigator, 'share')
@@ -71,7 +71,7 @@ describe('SettingsTab backup', () => {
 
     render(<SettingsTab onOpenOnboarding={vi.fn()} />)
     fireEvent.change(screen.getByLabelText('バックアップファイルを確認する'), { target: { files: [file] } })
-    fireEvent.click(await screen.findByRole('button', { name: '復元の確認へ' }))
+    fireEvent.click(await screen.findByRole('button', { name: '置き換えの確認へ' }))
     expect(screen.getByText('現在の記録を、このファイルの内容へ置き換えます')).toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: '退避して置き換える' }))
 
@@ -82,6 +82,26 @@ describe('SettingsTab backup', () => {
 
     expect(await screen.findByText('復元前の状態へ戻しました。')).toBeInTheDocument()
     await waitFor(async () => expect(await db.manualMastery.toArray()).toMatchObject([{ stationId: 'demo:station:minato' }]))
+  })
+
+  it('confirms and applies a safe merge from a new-format backup', async () => {
+    await db.quizAnswers.put({
+      id: 'answer-from-file', questionId: 'question-1', answeredAt: '2026-10-20T00:00:00.000Z',
+      answer: 'demo:station:sakura', correct: true, datasetVersion: 'demo-2026-10-26-v1'
+    })
+    const backup = await createBackup('2026-10-20T01:00:00.000Z')
+    const file = createBackupFile(backup)
+    Object.defineProperty(file, 'text', { value: async () => JSON.stringify(backup) })
+    await db.quizAnswers.clear()
+
+    render(<SettingsTab onOpenOnboarding={vi.fn()} />)
+    fireEvent.change(screen.getByLabelText('バックアップファイルを確認する'), { target: { files: [file] } })
+    fireEvent.click(await screen.findByRole('button', { name: '統合の確認へ' }))
+    expect(screen.getByText('現在の記録を残し、安全なルールで統合します')).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: '退避して統合する' }))
+
+    expect(await screen.findByText(/統合しました。追加1件/)).toBeInTheDocument()
+    expect(await db.quizAnswers.get('answer-from-file')).toBeDefined()
   })
 
   it('checks writable storage without changing existing settings', async () => {

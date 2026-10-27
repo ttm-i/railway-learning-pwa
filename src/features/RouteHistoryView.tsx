@@ -4,7 +4,7 @@ import { AlertTriangle, CalendarDays, ChevronDown, Search, Trash2, X } from 'luc
 import { demoNetwork } from '../data/demoNetwork'
 import { findEdge, getStation } from '../domain/graph'
 import { getRouteLineIds, matchesRouteQuery } from '../domain/routeHistory'
-import { db } from '../storage/db'
+import { createDeletedRecordTombstone, db } from '../storage/db'
 
 function formatRecordedAt(value: string) {
   const date = new Date(value)
@@ -28,7 +28,10 @@ export function RouteHistoryView() {
       : a.createdAt.localeCompare(b.createdAt)), [history, query, sort])
 
   const deleteRecord = async (id: string) => {
-    await db.routeHistory.delete(id)
+    await db.transaction('rw', [db.routeHistory, db.deletedRecords], async () => {
+      await db.routeHistory.delete(id)
+      await db.deletedRecords.put(createDeletedRecordTombstone('routeHistory', id))
+    })
     if (expandedId === id) setExpandedId(null)
     setPendingDeleteId(null)
   }

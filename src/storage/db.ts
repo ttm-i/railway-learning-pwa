@@ -59,6 +59,19 @@ export interface RouteHistoryRecord {
   metrics: RouteMetrics
 }
 
+export type DeletedRecordType = 'routeHistory' | 'routeSearchFavorite'
+
+export interface DeletedRecordTombstone {
+  id: string
+  recordType: DeletedRecordType
+  recordId: string
+  deletedAt: string
+}
+
+export function createDeletedRecordTombstone(recordType: DeletedRecordType, recordId: string, deletedAt = new Date().toISOString()): DeletedRecordTombstone {
+  return { id: `${recordType}:${recordId}`, recordType, recordId, deletedAt }
+}
+
 const channel = import.meta.env.VITE_APP_CHANNEL || 'development'
 
 class RailwayLearningDatabase extends Dexie {
@@ -68,6 +81,7 @@ class RailwayLearningDatabase extends Dexie {
   quizSuspension!: EntityTable<QuizSuspensionRecord, 'id'>
   routeSuspension!: EntityTable<RouteSuspensionRecord, 'id'>
   routeHistory!: EntityTable<RouteHistoryRecord, 'id'>
+  deletedRecords!: EntityTable<DeletedRecordTombstone, 'id'>
 
   constructor() {
     super(`railway-learning-${channel}`)
@@ -85,6 +99,15 @@ class RailwayLearningDatabase extends Dexie {
       quizSuspension: 'id, updatedAt, datasetVersion',
       routeSuspension: 'id, updatedAt, datasetVersion',
       routeHistory: 'id, createdAt, datasetVersion'
+    })
+    this.version(3).stores({
+      settings: 'key',
+      manualMastery: 'stationId, learned, updatedAt',
+      quizAnswers: 'id, answeredAt, correct, datasetVersion',
+      quizSuspension: 'id, updatedAt, datasetVersion',
+      routeSuspension: 'id, updatedAt, datasetVersion',
+      routeHistory: 'id, createdAt, datasetVersion',
+      deletedRecords: 'id, recordType, recordId, deletedAt'
     })
   }
 }

@@ -1,8 +1,8 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
-import { BackupValidationError, countRecordsSinceBackup, createBackup, createBackupFile, createBackupMetadata, getBackupMetadata, getRecoverySnapshot, parseBackupPreview, recoverySnapshotSettingKey, replaceWithBackup, restoreRecoverySnapshot, shouldShowBackupReminder } from './backup'
-import { db } from './db'
+import { BackupValidationError, countRecordsSinceBackup, createBackup, createBackupFile, createBackupMetadata, getBackupMetadata, getRecoverySnapshot, mergeWithBackup, parseBackup, parseBackupPreview, recoverySnapshotSettingKey, replaceWithBackup, restoreRecoverySnapshot, shouldShowBackupReminder } from './backup'
+import { createDeletedRecordTombstone, db } from './db'
 
-const tables = [db.settings, db.manualMastery, db.quizAnswers, db.quizSuspension, db.routeSuspension, db.routeHistory]
+const tables = [db.settings, db.manualMastery, db.quizAnswers, db.quizSuspension, db.routeSuspension, db.routeHistory, db.deletedRecords]
 
 describe('backup export', () => {
   beforeEach(async () => Promise.all(tables.map((table) => table.clear())))
@@ -16,7 +16,7 @@ describe('backup export', () => {
     const file = createBackupFile(backup)
 
     expect(backup).toMatchObject({
-      schemaVersion: 1,
+      schemaVersion: 2,
       exportedAt: '2026-10-27T12:34:56.000Z',
       appVersion: '0.1.0',
       datasetVersions: ['demo-2026-10-26-v1']
@@ -112,5 +112,55 @@ describe('backup export', () => {
       .rejects.toThrow('別の公開版で作られたため')
     expect(await db.manualMastery.toArray()).toMatchObject([{ stationId: 'demo:station:sakura' }])
     expect(await db.settings.get(recoverySnapshotSettingKey)).toBeUndefined()
+  })
+
+  it('merges new records while respecting newer mastery, conflicts, and deletions', async () => {
+    await db.settings.put({ key: 'routeSearchFavorites', value: [{
+      id: 'favorite-old', name: '古いお気に入り', createdAt: '2026-10-20T00:00:00.000Z',
+      startId: 'demo:station:sakura', destinationId: 'demo:station:minato', viaIds: [], excludedLineIds: []
+    }] })
+    await db.manualMastery.put({ stationId: 'demo:station:sakura', learned: true, updatedAt: '2026-10-20T00:00:00.000Z' })
+    await db.quizAnswers.bulkPut([
+      { id: 'answer-conflict', questionId: 'old-question', answeredAt: '2026-10-20T00:00:00.000Z', answer: 'demo:station:sakura', correct: true, datasetVersion: 'demo-2026-10-26-v1' },
+      { id: 'answer-new', questionId: 'new-question', answeredAt: '2026-10-20T01:00:00.000Z', answer: 'demo:station:minato', correct: true, datasetVersion: 'demo-2026-10-26-v1' }
+    ])
+    await db.routeHistory.put({
+      id: 'route-deleted', createdAt: '2026-10-20T00:00:00.000Z', datasetVersion: 'demo-2026-10-26-v1',
+      path: ['demo:station:sakura', 'demo:station:midori'], metrics: { railSegments: 1, transfers: 0, revisits: 0, walks: 0 }
+    })
+    const incoming = await createBackup('2026-10-20T02:00:00.000Z')
+
+    await Promise.all(tables.map((table) => table.clear()))
+    await db.settings.put({ key: 'deviceSetting', value: 'keep-current' })
+    await db.manualMastery.put({ stationId: 'demo:station:sakura', learned: false, updatedAt: '2026-10-27T00:00:00.000Z' })
+    await db.quizAnswers.put({ id: 'answer-conflict', questionId: 'current-question', answeredAt: '2026-10-27T00:00:00.000Z', answer: 'demo:station:minato', correct: false, datasetVersion: 'demo-2026-10-26-v1' })
+    await db.deletedRecords.bulkPut([
+      createDeletedRecordTombstone('routeHistory', 'route-deleted', '2026-10-27T00:00:00.000Z'),
+      createDeletedRecordTombstone('routeSearchFavorite', 'favorite-old', '2026-10-27T00:00:00.000Z')
+    ])
+
+    const result = await mergeWithBackup(incoming, 'new-format.json', '2026-10-27T01:00:00.000Z')
+
+    expect(result).toEqual({ addedRecords: 1, updatedMastery: 0, ignoredConflicts: 1, preventedDeletedRecords: 2 })
+    expect(await db.manualMastery.get('demo:station:sakura')).toMatchObject({ learned: false })
+    expect(await db.quizAnswers.get('answer-conflict')).toMatchObject({ questionId: 'current-question' })
+    expect(await db.quizAnswers.get('answer-new')).toBeDefined()
+    expect(await db.routeHistory.get('route-deleted')).toBeUndefined()
+    expect((await db.settings.get('routeSearchFavorites'))?.value).toEqual([])
+    expect(await db.settings.get('deviceSetting')).toMatchObject({ value: 'keep-current' })
+    expect(getRecoverySnapshot((await db.settings.get(recoverySnapshotSettingKey))?.value)).not.toBeNull()
+
+    const secondResult = await mergeWithBackup(incoming, 'new-format.json', '2026-10-27T02:00:00.000Z')
+    expect(secondResult.addedRecords).toBe(0)
+    expect(await db.quizAnswers.count()).toBe(2)
+  })
+
+  it('keeps legacy backups replacement-only', async () => {
+    const current = await createBackup('2026-10-27T01:00:00.000Z')
+    const { deletedRecords: _deletedRecords, ...legacyData } = current.data
+    const legacy = parseBackup(JSON.stringify({ ...current, schemaVersion: 1, data: legacyData }))
+
+    await expect(mergeWithBackup(legacy, 'legacy.json')).rejects.toThrow('置き換え')
+    await expect(replaceWithBackup(legacy, 'legacy.json')).resolves.toBeUndefined()
   })
 })
