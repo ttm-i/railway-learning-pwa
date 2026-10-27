@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
-import { BackupValidationError, createBackup, createBackupFile, parseBackupPreview } from './backup'
+import { BackupValidationError, countRecordsSinceBackup, createBackup, createBackupFile, createBackupMetadata, getBackupMetadata, parseBackupPreview } from './backup'
 import { db } from './db'
 
 const tables = [db.settings, db.manualMastery, db.quizAnswers, db.quizSuspension, db.routeSuspension, db.routeHistory]
@@ -46,5 +46,16 @@ describe('backup export', () => {
   it('rejects malformed and unsupported backup files', () => {
     expect(() => parseBackupPreview('{broken')).toThrow(BackupValidationError)
     expect(() => parseBackupPreview(JSON.stringify({ schemaVersion: 99 }))).toThrow('対応していないバックアップ形式です。')
+  })
+
+  it('records an export attempt and counts only later increases', async () => {
+    await db.manualMastery.put({ stationId: 'demo:station:sakura', learned: true, updatedAt: '2026-10-27T00:00:00.000Z' })
+    const backup = await createBackup('2026-10-27T12:34:56.000Z')
+    const metadata = createBackupMetadata(backup, 'backup.json', '2026-10-27T12:35:00.000Z')
+
+    expect(getBackupMetadata(metadata)).toEqual(metadata)
+    expect(countRecordsSinceBackup(metadata, { learnedStations: 2, quizAnswers: 3, routeHistory: 1 })).toBe(5)
+    expect(countRecordsSinceBackup(metadata, { learnedStations: 0, quizAnswers: 0, routeHistory: 0 })).toBe(0)
+    expect(getBackupMetadata({ lastExportAttemptAt: 'invalid' })).toBeNull()
   })
 })

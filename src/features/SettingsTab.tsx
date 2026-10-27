@@ -3,7 +3,7 @@ import { useLiveQuery } from 'dexie-react-hooks'
 import { AlertTriangle, CheckCircle2, Database, Download, FileSearch, HardDrive, HelpCircle, ShieldCheck, WifiOff } from 'lucide-react'
 import { demoNetwork } from '../data/demoNetwork'
 import { db, storageChannel } from '../storage/db'
-import { BackupValidationError, createBackup, createBackupFile, maximumBackupFileBytes, parseBackupPreview, presentBackupFile, type BackupPreview } from '../storage/backup'
+import { BackupValidationError, countRecordsSinceBackup, createBackup, createBackupFile, createBackupMetadata, getBackupMetadata, maximumBackupFileBytes, parseBackupPreview, presentBackupFile, type BackupPreview } from '../storage/backup'
 import { usePwaStatus } from '../pwaStatus'
 import { checkStorageHealth, formatStorageBytes, type StorageHealthResult } from '../storage/storageHealth'
 
@@ -16,19 +16,30 @@ export function SettingsTab({ onOpenOnboarding }: SettingsTabProps) {
   const learned = useLiveQuery(() => db.manualMastery.where('learned').equals(1).count(), []) ?? 0
   const answers = useLiveQuery(() => db.quizAnswers.count(), []) ?? 0
   const routes = useLiveQuery(() => db.routeHistory.count(), []) ?? 0
+  const backupMetadataRecord = useLiveQuery(() => db.settings.get('backupMetadata'), [], null)
   const [backupWorking, setBackupWorking] = useState(false)
   const [backupMessage, setBackupMessage] = useState('')
   const [backupPreview, setBackupPreview] = useState<BackupPreview | null>(null)
   const [previewMessage, setPreviewMessage] = useState('')
   const [storageChecking, setStorageChecking] = useState(false)
   const [storageHealth, setStorageHealth] = useState<StorageHealthResult | null>(null)
+  const backupMetadata = getBackupMetadata(backupMetadataRecord?.value)
+  const recordsSinceBackup = backupMetadata
+    ? countRecordsSinceBackup(backupMetadata, { learnedStations: learned, quizAnswers: answers, routeHistory: routes })
+    : 0
 
   const exportBackup = async () => {
     setBackupWorking(true)
     setBackupMessage('')
     try {
-      const file = createBackupFile(await createBackup())
+      const backup = await createBackup()
+      const file = createBackupFile(backup)
       const method = await presentBackupFile(file)
+      try {
+        await db.settings.put({ key: 'backupMetadata', value: createBackupMetadata(backup, file.name) })
+      } catch {
+        // ファイル書き出し自体は開始済みなので、補助情報の保存失敗で成功案内を上書きしない。
+      }
       setBackupMessage(method === 'share'
         ? '共有メニューを閉じました。選んだ保存先にファイルがあるかご確認ください。'
         : 'ファイルの書き出しを開始しました。ダウンロード先をご確認ください。')
@@ -113,6 +124,13 @@ export function SettingsTab({ onOpenOnboarding }: SettingsTabProps) {
       <article className="settings-card backup-card">
         <h2><Download size={20} aria-hidden="true" />バックアップ</h2>
         <p>学習記録・クイズ・経路・お気に入りを1つのJSONファイルにまとめます。書き出すだけなので、端末内の記録は変更しません。</p>
+        <div className="backup-activity">
+          {backupMetadata ? <>
+            <span><strong>前回の書き出し操作</strong>{formatBackupDate(backupMetadata.lastExportAttemptAt)}</span>
+            <span><strong>その後に増えた記録</strong>{recordsSinceBackup}件</span>
+          </> : <span><strong>前回の書き出し操作</strong>まだ記録されていません</span>}
+          <small>ファイル保存の完了はアプリから確認できないため、共有メニューを閉じた時刻を表示します。</small>
+        </div>
         <button className="backup-export-button" disabled={backupWorking} onClick={() => void exportBackup()}><Download size={17} aria-hidden="true" />{backupWorking ? '準備しています…' : 'バックアップを書き出す'}</button>
         <p className="backup-message" aria-live="polite">{backupMessage}</p>
         <div className="backup-divider"><span>保存済みファイルの確認</span></div>

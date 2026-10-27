@@ -35,6 +35,18 @@ export interface BackupPreview {
   }
 }
 
+export interface BackupRecordCounts {
+  learnedStations: number
+  quizAnswers: number
+  routeHistory: number
+}
+
+export interface BackupMetadata {
+  lastExportAttemptAt: string
+  fileName: string
+  counts: BackupRecordCounts
+}
+
 export class BackupValidationError extends Error {}
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -43,6 +55,33 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 
 function isArrayOf(value: unknown, validate: (item: Record<string, unknown>) => boolean) {
   return Array.isArray(value) && value.every((item) => isRecord(item) && validate(item))
+}
+
+export function createBackupMetadata(backup: RailwayLearningBackup, fileName: string, attemptedAt = new Date().toISOString()): BackupMetadata {
+  return {
+    lastExportAttemptAt: attemptedAt,
+    fileName,
+    counts: {
+      learnedStations: backup.data.manualMastery.filter((record) => record.learned).length,
+      quizAnswers: backup.data.quizAnswers.length,
+      routeHistory: backup.data.routeHistory.length
+    }
+  }
+}
+
+export function getBackupMetadata(value: unknown): BackupMetadata | null {
+  if (!isRecord(value) || typeof value.lastExportAttemptAt !== 'string' || Number.isNaN(Date.parse(value.lastExportAttemptAt)) || typeof value.fileName !== 'string' || !isRecord(value.counts)) return null
+  const { learnedStations, quizAnswers, routeHistory } = value.counts
+  if (![learnedStations, quizAnswers, routeHistory].every((count) => typeof count === 'number' && Number.isInteger(count) && count >= 0)) return null
+  return value as unknown as BackupMetadata
+}
+
+export function countRecordsSinceBackup(metadata: BackupMetadata, current: BackupRecordCounts) {
+  return (
+    Math.max(0, current.learnedStations - metadata.counts.learnedStations)
+    + Math.max(0, current.quizAnswers - metadata.counts.quizAnswers)
+    + Math.max(0, current.routeHistory - metadata.counts.routeHistory)
+  )
 }
 
 export function parseBackupPreview(text: string): BackupPreview {

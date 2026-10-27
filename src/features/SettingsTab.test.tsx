@@ -39,6 +39,11 @@ describe('SettingsTab backup', () => {
     expect(sharedFile.type).toBe('application/json')
     expect(await db.quizAnswers.count()).toBe(1)
     expect(await screen.findByText('共有メニューを閉じました。選んだ保存先にファイルがあるかご確認ください。')).toBeInTheDocument()
+    await waitFor(async () => {
+      const metadata = await db.settings.get('backupMetadata')
+      expect(metadata?.value).toMatchObject({ counts: { quizAnswers: 1, learnedStations: 0, routeHistory: 0 } })
+    })
+    expect(screen.getByText('その後に増えた記録').parentElement).toHaveTextContent('0件')
   })
 
   it('previews a selected backup without restoring it', async () => {
