@@ -76,6 +76,9 @@ main { padding-bottom: calc(92px + env(safe-area-inset-bottom)); }
 .destination-ring { fill: none; stroke: #d23f37; stroke-width: 4; stroke-dasharray: 5 4; }
 .candidate-ring { fill: rgba(248, 187, 76, .22); stroke: #bd7800; stroke-width: 3; }
 .map-legend { display: flex; gap: 14px; padding: 10px 14px 13px; border-top: 1px solid var(--line); color: var(--muted); font-size: .75rem; font-weight: 700; }
+.route-game-map { position: relative; }
+.current-station-button { position: absolute; z-index: 3; top: 10px; left: 10px; display: inline-flex; align-items: center; gap: 6px; min-height: 40px; padding: 8px 10px; border: 1px solid rgba(23, 60, 53, .18); border-radius: 12px; color: #fff; background: rgba(23, 60, 53, .9); box-shadow: 0 5px 16px rgba(29, 54, 47, .16); font-size: .7rem; font-weight: 800; }
+.current-station-button.paused { color: #604917; background: rgba(255, 239, 196, .94); }
 .map-legend span, .line-chips span, .line-chips button { display: inline-flex; align-items: center; gap: 6px; }
 .map-legend i, .line-chips i, .candidate-list i { width: 16px; height: 5px; border-radius: 99px; }
 .selected-line-banner { display: flex; align-items: center; gap: 8px; margin: 11px 2px -3px; color: var(--muted); font-size: .75rem; }

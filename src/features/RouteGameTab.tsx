@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useLiveQuery } from 'dexie-react-hooks'
-import { ArrowRight, CheckCircle2, ChevronDown, Flag, Gamepad2, History, Lightbulb, List, RotateCcw, Scissors, Search, Undo2 } from 'lucide-react'
-import { RailMap } from '../components/RailMap'
+import { ArrowRight, CheckCircle2, ChevronDown, Flag, Gamepad2, History, Lightbulb, List, LocateFixed, RotateCcw, Scissors, Search, Undo2 } from 'lucide-react'
+import { fullMapViewport, normalizeMapViewport, RailMap, type MapViewport } from '../components/RailMap'
 import { demoNetwork } from '../data/demoNetwork'
 import { calculateMetrics, getNeighbors, getStation, isValidPath } from '../domain/graph'
 import { getHintText, getOrderedViaProgress, type HintLevel, type RouteLabelMode } from '../domain/routeGame'
@@ -35,6 +35,8 @@ export function RouteGameTab() {
   const [viaIds, setViaIds] = useState<StableId[]>([])
   const [excludedLineIds, setExcludedLineIds] = useState<StableId[]>([])
   const [view, setView] = useState<'game' | 'search' | 'history'>('game')
+  const [mapViewport, setMapViewport] = useState<MapViewport>(fullMapViewport)
+  const [autoFollow, setAutoFollow] = useState(true)
   const [restored, setRestored] = useState(false)
   const historyCount = useLiveQuery(() => db.routeHistory.count(), []) ?? 0
 
@@ -72,6 +74,13 @@ export function RouteGameTab() {
   const hintTargetId = viaIds[viaProgress] ?? destinationId
   const hintText = getHintText(demoNetwork, currentId, hintTargetId, hintLevel, excludedLineIds)
 
+  useEffect(() => {
+    if (!autoFollow) return
+    const currentStation = getStation(demoNetwork, currentId)
+    if (!currentStation) return
+    setMapViewport((current) => normalizeMapViewport({ ...current, centerX: currentStation.x, centerY: currentStation.y }))
+  }, [currentId, autoFollow])
+
   const stationLabel = (stationId: StableId, routeIndex?: number) => {
     const stationName = getStation(demoNetwork, stationId)?.canonicalName ?? '不明な駅'
     if (!hideStationNames || stationId === startId || stationId === destinationId) return stationName
@@ -107,6 +116,8 @@ export function RouteGameTab() {
     setPath([nextStart])
     setHintLevel(0)
     setRouteExpanded(false)
+    setMapViewport(fullMapViewport)
+    setAutoFollow(true)
     setMessage('新しい経路を開始しました。')
   }
 
@@ -133,8 +144,17 @@ export function RouteGameTab() {
     setPath([conditions.startId])
     setHintLevel(0)
     setRouteExpanded(false)
+    setMapViewport(fullMapViewport)
+    setAutoFollow(true)
     setMessage('検索条件を引き継ぎました。検索結果は隠しています。')
     setView('game')
+  }
+
+  const returnToCurrentStation = () => {
+    const currentStation = getStation(demoNetwork, currentId)
+    if (!currentStation) return
+    setMapViewport((current) => normalizeMapViewport({ ...current, centerX: currentStation.x, centerY: currentStation.y }))
+    setAutoFollow(true)
   }
 
   return (
@@ -184,16 +204,31 @@ export function RouteGameTab() {
           <button key={mode.value} className={labelMode === mode.value ? 'active' : ''} onClick={() => setLabelMode(mode.value)}>{mode.label}</button>
         ))}
       </div>
-      <RailMap
-        selectedStationId={currentId}
-        destinationId={destinationId}
-        route={path}
-        candidateIds={candidates.map((candidate) => candidate.stationId)}
-        hideStationNames={hideStationNames}
-        hideLineNames={hideLineNames}
-        alwaysVisibleStationIds={[startId, destinationId]}
-        onSelectStation={move}
-      />
+      <div className="route-game-map">
+        <RailMap
+          selectedStationId={currentId}
+          destinationId={destinationId}
+          route={path}
+          candidateIds={candidates.map((candidate) => candidate.stationId)}
+          hideStationNames={hideStationNames}
+          hideLineNames={hideLineNames}
+          alwaysVisibleStationIds={[startId, destinationId]}
+          onSelectStation={move}
+          interactiveViewport
+          viewport={mapViewport}
+          onViewportChange={setMapViewport}
+          onViewportCommit={() => setAutoFollow(false)}
+        />
+        <button
+          type="button"
+          className={`current-station-button ${autoFollow ? 'following' : 'paused'}`}
+          aria-pressed={autoFollow}
+          onClick={returnToCurrentStation}
+        >
+          <LocateFixed size={17} aria-hidden="true" />
+          {autoFollow ? '現在駅を表示中' : '現在駅へ戻る'}
+        </button>
+      </div>
       <div className="game-status" aria-live="polite"><Flag size={17} aria-hidden="true" /><span>{message}</span></div>
       <article className="route-panel">
         <div className="route-panel__heading">

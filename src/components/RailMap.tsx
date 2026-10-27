@@ -175,7 +175,7 @@ export function RailMap({
     } else if (pointersRef.current.size === 0) {
       panStartRef.current = undefined
       pinchStartRef.current = undefined
-      onViewportCommit?.(viewportRef.current)
+      if (gestureMovedRef.current) onViewportCommit?.(viewportRef.current)
     }
   }
 
