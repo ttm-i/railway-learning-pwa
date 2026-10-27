@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import type { PointerEvent as ReactPointerEvent } from 'react'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { Check, ChevronDown, ChevronUp, MapPinned, Search, TrainFront, X } from 'lucide-react'
-import { fullMapViewport, normalizeMapViewport, RailMap, type MapViewport } from '../components/RailMap'
+import { normalizeMapViewport, RailMap, tallMapHeight, tallMapViewport, type MapViewport } from '../components/RailMap'
 import { demoNetwork } from '../data/demoNetwork'
 import { getLine, getNeighbors, getStation } from '../domain/graph'
 import { searchNetwork } from '../domain/search'
@@ -18,7 +18,7 @@ export function MapTab() {
   const [selectedId, setSelectedId] = useState<StableId>('demo:station:midori')
   const [selectedLineId, setSelectedLineId] = useState<StableId | undefined>()
   const [query, setQuery] = useState('')
-  const [viewport, setViewport] = useState<MapViewport>(fullMapViewport)
+  const [viewport, setViewport] = useState<MapViewport>(tallMapViewport)
   const [sheetLevel, setSheetLevel] = useState<SheetLevel>('peek')
   const [sheetDragOffset, setSheetDragOffset] = useState(0)
   const sheetDragOffsetRef = useRef(0)
@@ -41,7 +41,7 @@ export function MapTab() {
     if (!value || typeof value !== 'object') return
     const candidate = value as Partial<MapViewport>
     if ([candidate.centerX, candidate.centerY, candidate.zoom].every((item) => typeof item === 'number' && Number.isFinite(item))) {
-      setViewport(normalizeMapViewport(candidate as MapViewport))
+      setViewport(normalizeMapViewport(candidate as MapViewport, tallMapHeight))
     }
   }, [savedViewport])
 
@@ -62,8 +62,8 @@ export function MapTab() {
     setSelectedLineId(lineId)
     if (!line.stationIds.includes(selectedId)) setSelectedId(line.stationIds[0])
     if (showWholeLine) {
-      setViewport(fullMapViewport)
-      saveViewport(fullMapViewport)
+      setViewport(tallMapViewport)
+      saveViewport(tallMapViewport)
     }
     setSheetLevel('half')
     setQuery('')
@@ -73,7 +73,7 @@ export function MapTab() {
     const result = getStation(demoNetwork, stationId)
     selectStation(stationId)
     if (!result) return
-    const focused = normalizeMapViewport({ centerX: result.x, centerY: result.y, zoom: 1.8 })
+    const focused = normalizeMapViewport({ centerX: result.x, centerY: result.y, zoom: 1.8 }, tallMapHeight)
     setViewport(focused)
     saveViewport(focused)
   }
@@ -153,6 +153,7 @@ export function MapTab() {
           onSelectStation={selectStation}
           onSelectLine={(lineId) => selectLine(lineId, false)}
           interactiveViewport
+          tallViewport
           viewport={viewport}
           onViewportChange={setViewport}
           onViewportCommit={saveViewport}

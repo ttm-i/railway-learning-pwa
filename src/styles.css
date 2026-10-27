@@ -50,6 +50,7 @@ main { padding-bottom: calc(92px + env(safe-area-inset-bottom)); }
 .map-stage { position: relative; }
 .map-canvas { position: relative; overflow: hidden; }
 .rail-map { display: block; width: 100%; aspect-ratio: 8 / 7; }
+.rail-map.tall-rail-map { height: 62vh; height: 62dvh; min-height: 460px; max-height: 640px; aspect-ratio: auto; }
 .interactive-map .rail-map { touch-action: none; user-select: none; }
 .map-controls { position: absolute; z-index: 2; top: 10px; right: 10px; display: grid; overflow: hidden; border: 1px solid rgba(23, 60, 53, .18); border-radius: 13px; background: rgba(255, 255, 255, .92); box-shadow: 0 5px 16px rgba(29, 54, 47, .16); }
 .map-controls button { display: grid; place-items: center; width: 44px; height: 44px; padding: 0; border: 0; border-bottom: 1px solid var(--line); color: var(--green); background: transparent; }

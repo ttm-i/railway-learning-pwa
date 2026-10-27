@@ -18,6 +18,7 @@ interface RailMapProps {
   onSelectStation?: (stationId: StableId) => void
   onSelectLine?: (lineId: StableId) => void
   interactiveViewport?: boolean
+  tallViewport?: boolean
   viewport?: MapViewport
   onViewportChange?: (viewport: MapViewport) => void
   onViewportCommit?: (viewport: MapViewport) => void
@@ -30,18 +31,21 @@ export interface MapViewport {
 }
 
 export const fullMapViewport: MapViewport = { centerX: 200, centerY: 175, zoom: 1 }
+export const tallMapViewport: MapViewport = { centerX: 200, centerY: 240, zoom: 1 }
 
 const minZoom = 1
 const maxZoom = 2.6
+const standardMapHeight = 350
+export const tallMapHeight = 480
 
-export function normalizeMapViewport(viewport: MapViewport): MapViewport {
+export function normalizeMapViewport(viewport: MapViewport, mapHeight = standardMapHeight): MapViewport {
   const zoom = Math.min(maxZoom, Math.max(minZoom, viewport.zoom))
   const width = 400 / zoom
-  const height = 350 / zoom
+  const height = mapHeight / zoom
   return {
     zoom,
     centerX: Math.min(400 - width / 2, Math.max(width / 2, viewport.centerX)),
-    centerY: Math.min(350 - height / 2, Math.max(height / 2, viewport.centerY))
+    centerY: Math.min(mapHeight - height / 2, Math.max(height / 2, viewport.centerY))
   }
 }
 
@@ -57,11 +61,13 @@ export function RailMap({
   onSelectStation,
   onSelectLine,
   interactiveViewport = false,
-  viewport = fullMapViewport,
+  tallViewport = false,
+  viewport = tallViewport ? tallMapViewport : fullMapViewport,
   onViewportChange,
   onViewportCommit
 }: RailMapProps) {
-  const normalizedViewport = normalizeMapViewport(viewport)
+  const mapHeight = tallViewport ? tallMapHeight : standardMapHeight
+  const normalizedViewport = normalizeMapViewport(viewport, mapHeight)
   const viewportRef = useRef(normalizedViewport)
   const pointersRef = useRef(new Map<number, { x: number; y: number }>())
   const panStartRef = useRef<{ x: number; y: number; viewport: MapViewport } | undefined>(undefined)
@@ -70,7 +76,7 @@ export function RailMap({
   const suppressClickRef = useRef(false)
   const routePairs = route.slice(1).map((to, index) => ({ from: route[index], to }))
   const viewWidth = 400 / normalizedViewport.zoom
-  const viewHeight = 350 / normalizedViewport.zoom
+  const viewHeight = mapHeight / normalizedViewport.zoom
   const viewBox = `${normalizedViewport.centerX - viewWidth / 2} ${normalizedViewport.centerY - viewHeight / 2} ${viewWidth} ${viewHeight}`
   const stagedLabels = interactiveViewport && !hideStationNames
     ? layoutMapLabels(demoNetwork, {
@@ -86,7 +92,7 @@ export function RailMap({
   viewportRef.current = normalizedViewport
 
   const changeViewport = (next: MapViewport, commit = false) => {
-    const normalized = normalizeMapViewport(next)
+    const normalized = normalizeMapViewport(next, mapHeight)
     viewportRef.current = normalized
     onViewportChange?.(normalized)
     if (commit) onViewportCommit?.(normalized)
@@ -96,7 +102,7 @@ export function RailMap({
     changeViewport({ ...viewportRef.current, zoom: viewportRef.current.zoom * factor }, true)
   }
 
-  const resetViewport = () => changeViewport(fullMapViewport, true)
+  const resetViewport = () => changeViewport(tallViewport ? tallMapViewport : fullMapViewport, true)
 
   const pointerPosition = (event: ReactPointerEvent<SVGSVGElement>) => ({ x: event.clientX, y: event.clientY })
 
@@ -124,7 +130,7 @@ export function RailMap({
     pointersRef.current.set(event.pointerId, pointerPosition(event))
     const rect = event.currentTarget.getBoundingClientRect()
     const pixelWidth = rect.width || 400
-    const pixelHeight = rect.height || 350
+    const pixelHeight = rect.height || mapHeight
 
     if (pointersRef.current.size >= 2 && pinchStartRef.current) {
       const [first, second] = [...pointersRef.current.values()]
@@ -138,7 +144,7 @@ export function RailMap({
       changeViewport({
         zoom: start.viewport.zoom * (distance / Math.max(start.distance, 1)),
         centerX: start.viewport.centerX - (midpointX - start.midpointX) * (400 / start.viewport.zoom) / pixelWidth,
-        centerY: start.viewport.centerY - (midpointY - start.midpointY) * (350 / start.viewport.zoom) / pixelHeight
+        centerY: start.viewport.centerY - (midpointY - start.midpointY) * (mapHeight / start.viewport.zoom) / pixelHeight
       })
       return
     }
@@ -151,7 +157,7 @@ export function RailMap({
     changeViewport({
       ...start.viewport,
       centerX: start.viewport.centerX - dx * (400 / start.viewport.zoom) / pixelWidth,
-      centerY: start.viewport.centerY - dy * (350 / start.viewport.zoom) / pixelHeight
+      centerY: start.viewport.centerY - dy * (mapHeight / start.viewport.zoom) / pixelHeight
     })
   }
 
@@ -177,8 +183,9 @@ export function RailMap({
     <div className={`map-frame ${interactiveViewport ? 'interactive-map' : ''}`}>
       <div className="map-canvas">
       <svg
-        className="rail-map"
+        className={`rail-map ${tallViewport ? 'tall-rail-map' : ''}`}
         viewBox={viewBox}
+        preserveAspectRatio={tallViewport ? 'xMidYMin meet' : undefined}
         role="img"
         aria-label={interactiveViewport ? '架空路線図。1本指で移動、2本指で拡大・縮小できます' : '架空路線図'}
         data-testid="rail-map-svg"
@@ -193,7 +200,7 @@ export function RailMap({
           suppressClickRef.current = false
         }}
       >
-        <rect width="400" height="350" rx="28" className="map-background" />
+        <rect width="400" height={mapHeight} rx="28" className="map-background" />
         <path d="M18 300 C95 255 88 212 160 194 C250 172 290 120 388 54" className="river" />
         {demoNetwork.lines.map((line) => {
           const edges = demoNetwork.edges.filter((edge) => edge.lineId === line.stableId)

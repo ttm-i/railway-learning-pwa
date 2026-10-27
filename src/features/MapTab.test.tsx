@@ -23,6 +23,14 @@ describe('MapTab viewport', () => {
     }))
   })
 
+  it('uses a taller map canvas without changing other maps', () => {
+    vi.spyOn(db.settings, 'get').mockResolvedValue(undefined)
+    render(<MapTab />)
+
+    expect(screen.getByTestId('rail-map-svg')).toHaveClass('tall-rail-map')
+    expect(screen.getByTestId('rail-map-svg')).toHaveAttribute('viewBox', '0 0 400 480')
+  })
+
   it('zooms to a station selected from search', async () => {
     vi.spyOn(db.settings, 'get').mockResolvedValue(undefined)
     const { container } = render(<MapTab />)
