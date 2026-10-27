@@ -274,6 +274,11 @@ main { padding-bottom: calc(92px + env(safe-area-inset-bottom)); }
 .backup-activity > span { display: grid; gap: 2px; color: var(--ink); font-size: .68rem; }
 .backup-activity > span strong { color: var(--muted); font-size: .59rem; }
 .backup-activity > small { grid-column: 1 / -1; color: var(--muted); font-size: .58rem; line-height: 1.45; }
+.backup-reminder { display: flex; gap: 8px; align-items: flex-start; margin-top: 10px; padding: 10px; border-radius: 11px; color: #714113; background: #fff0d6; }
+.backup-reminder svg { flex: none; margin-top: 1px; }
+.backup-reminder div { display: grid; gap: 2px; }
+.backup-reminder strong { font-size: .72rem; }
+.backup-reminder span { font-size: .64rem; line-height: 1.5; }
 .settings-card p.backup-message { min-height: 1.4em; margin-top: 8px; color: var(--green); font-size: .68rem; font-weight: 800; line-height: 1.5; }
 .backup-card > small { display: block; margin-top: 7px; color: var(--muted); font-size: .65rem; line-height: 1.5; }
 .backup-divider { display: flex; align-items: center; gap: 8px; margin: 10px 0; color: var(--muted); font-size: .62rem; }
@@ -330,6 +335,7 @@ main { padding-bottom: calc(92px + env(safe-area-inset-bottom)); }
   .offline-status-list dd.waiting { color: #d1cdc2; background: #303630; }
   .backup-inspect-button { color: #b9eadb; background: #16241f; border-color: #377666; }
   .backup-activity { background: #1b2a25; }
+  .backup-reminder { color: #ffe2b6; background: #49341f; }
   .backup-preview { background: #173b31; border-color: #285648; }
   .backup-preview > strong, .settings-card .backup-preview p { color: #c5f0dc; }
   .settings-card p.backup-preview-error { color: #ffd2cd; background: #492925; }

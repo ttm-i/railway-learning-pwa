@@ -71,4 +71,28 @@ describe('SettingsTab backup', () => {
     expect(await db.settings.get('__storageHealthCheck')).toBeUndefined()
     expect(await db.settings.get('existing')).toMatchObject({ value: 'keep' })
   })
+
+  it('shows a quiet reminder after 30 days and 10 new records', async () => {
+    await db.settings.put({
+      key: 'backupMetadata',
+      value: {
+        lastExportAttemptAt: '2020-01-01T00:00:00.000Z',
+        fileName: 'backup.json',
+        counts: { learnedStations: 0, quizAnswers: 0, routeHistory: 0 }
+      }
+    })
+    await db.quizAnswers.bulkPut(Array.from({ length: 10 }, (_, index) => ({
+      id: `answer-${index}`,
+      questionId: `question-${index}`,
+      answeredAt: '2026-10-27T00:00:00.000Z',
+      answer: 'demo:station:sakura',
+      correct: true,
+      datasetVersion: 'demo-2026-10-26-v1'
+    })))
+
+    render(<SettingsTab onOpenOnboarding={vi.fn()} />)
+
+    expect(await screen.findByText('そろそろバックアップしておくと安心です')).toBeInTheDocument()
+    expect(screen.getByText('前回の操作から30日以上たち、新しい記録が10件以上増えています。')).toBeInTheDocument()
+  })
 })

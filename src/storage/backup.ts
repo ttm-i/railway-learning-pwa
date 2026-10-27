@@ -4,6 +4,8 @@ import { db, storageChannel, type ManualMasteryRecord, type QuizAnswerRecord, ty
 
 export const backupSchemaVersion = 1
 export const maximumBackupFileBytes = 20 * 1024 * 1024
+export const backupReminderAfterDays = 30
+export const backupReminderAfterRecords = 10
 
 export interface RailwayLearningBackup {
   schemaVersion: number
@@ -82,6 +84,16 @@ export function countRecordsSinceBackup(metadata: BackupMetadata, current: Backu
     + Math.max(0, current.quizAnswers - metadata.counts.quizAnswers)
     + Math.max(0, current.routeHistory - metadata.counts.routeHistory)
   )
+}
+
+export function shouldShowBackupReminder(
+  metadata: BackupMetadata | null,
+  recordsSinceBackup: number,
+  now = new Date()
+) {
+  if (!metadata || recordsSinceBackup < backupReminderAfterRecords) return false
+  const elapsedMilliseconds = now.getTime() - Date.parse(metadata.lastExportAttemptAt)
+  return elapsedMilliseconds >= backupReminderAfterDays * 24 * 60 * 60 * 1000
 }
 
 export function parseBackupPreview(text: string): BackupPreview {

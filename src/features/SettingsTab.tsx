@@ -3,7 +3,7 @@ import { useLiveQuery } from 'dexie-react-hooks'
 import { AlertTriangle, CheckCircle2, Database, Download, FileSearch, HardDrive, HelpCircle, ShieldCheck, WifiOff } from 'lucide-react'
 import { demoNetwork } from '../data/demoNetwork'
 import { db, storageChannel } from '../storage/db'
-import { BackupValidationError, countRecordsSinceBackup, createBackup, createBackupFile, createBackupMetadata, getBackupMetadata, maximumBackupFileBytes, parseBackupPreview, presentBackupFile, type BackupPreview } from '../storage/backup'
+import { BackupValidationError, countRecordsSinceBackup, createBackup, createBackupFile, createBackupMetadata, getBackupMetadata, maximumBackupFileBytes, parseBackupPreview, presentBackupFile, shouldShowBackupReminder, type BackupPreview } from '../storage/backup'
 import { usePwaStatus } from '../pwaStatus'
 import { checkStorageHealth, formatStorageBytes, type StorageHealthResult } from '../storage/storageHealth'
 
@@ -27,6 +27,7 @@ export function SettingsTab({ onOpenOnboarding }: SettingsTabProps) {
   const recordsSinceBackup = backupMetadata
     ? countRecordsSinceBackup(backupMetadata, { learnedStations: learned, quizAnswers: answers, routeHistory: routes })
     : 0
+  const showBackupReminder = shouldShowBackupReminder(backupMetadata, recordsSinceBackup)
 
   const exportBackup = async () => {
     setBackupWorking(true)
@@ -131,6 +132,10 @@ export function SettingsTab({ onOpenOnboarding }: SettingsTabProps) {
           </> : <span><strong>前回の書き出し操作</strong>まだ記録されていません</span>}
           <small>ファイル保存の完了はアプリから確認できないため、共有メニューを閉じた時刻を表示します。</small>
         </div>
+        {showBackupReminder && <div className="backup-reminder" role="status">
+          <AlertTriangle size={19} aria-hidden="true" />
+          <div><strong>そろそろバックアップしておくと安心です</strong><span>前回の操作から30日以上たち、新しい記録が10件以上増えています。</span></div>
+        </div>}
         <button className="backup-export-button" disabled={backupWorking} onClick={() => void exportBackup()}><Download size={17} aria-hidden="true" />{backupWorking ? '準備しています…' : 'バックアップを書き出す'}</button>
         <p className="backup-message" aria-live="polite">{backupMessage}</p>
         <div className="backup-divider"><span>保存済みファイルの確認</span></div>

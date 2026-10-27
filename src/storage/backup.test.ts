@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
-import { BackupValidationError, countRecordsSinceBackup, createBackup, createBackupFile, createBackupMetadata, getBackupMetadata, parseBackupPreview } from './backup'
+import { BackupValidationError, countRecordsSinceBackup, createBackup, createBackupFile, createBackupMetadata, getBackupMetadata, parseBackupPreview, shouldShowBackupReminder } from './backup'
 import { db } from './db'
 
 const tables = [db.settings, db.manualMastery, db.quizAnswers, db.quizSuspension, db.routeSuspension, db.routeHistory]
@@ -57,5 +57,18 @@ describe('backup export', () => {
     expect(countRecordsSinceBackup(metadata, { learnedStations: 2, quizAnswers: 3, routeHistory: 1 })).toBe(5)
     expect(countRecordsSinceBackup(metadata, { learnedStations: 0, quizAnswers: 0, routeHistory: 0 })).toBe(0)
     expect(getBackupMetadata({ lastExportAttemptAt: 'invalid' })).toBeNull()
+  })
+
+  it('reminds only after both 30 days and 10 new records', () => {
+    const metadata = {
+      lastExportAttemptAt: '2026-09-01T00:00:00.000Z',
+      fileName: 'backup.json',
+      counts: { learnedStations: 0, quizAnswers: 0, routeHistory: 0 }
+    }
+
+    expect(shouldShowBackupReminder(metadata, 10, new Date('2026-10-01T00:00:00.000Z'))).toBe(true)
+    expect(shouldShowBackupReminder(metadata, 9, new Date('2026-10-01T00:00:00.000Z'))).toBe(false)
+    expect(shouldShowBackupReminder(metadata, 10, new Date('2026-09-30T23:59:59.999Z'))).toBe(false)
+    expect(shouldShowBackupReminder(null, 99, new Date('2026-10-01T00:00:00.000Z'))).toBe(false)
   })
 })
