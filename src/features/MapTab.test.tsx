@@ -34,4 +34,38 @@ describe('MapTab viewport', () => {
     expect(await screen.findByText('180%')).toBeInTheDocument()
     expect(screen.getByRole('heading', { name: '春風' })).toBeInTheDocument()
   })
+
+  it('changes the station information panel through three sizes', () => {
+    vi.spyOn(db.settings, 'get').mockResolvedValue(undefined)
+    render(<MapTab />)
+
+    expect(screen.getByRole('article', { name: /小サイズ/ })).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: '駅情報パネルを大きくする' }))
+    expect(screen.getByRole('article', { name: /中サイズ/ })).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: '駅情報パネルを大きくする' }))
+    expect(screen.getByRole('article', { name: /大サイズ/ })).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: '駅情報パネルを小さくする' }))
+    expect(screen.getByRole('article', { name: /中サイズ/ })).toBeInTheDocument()
+  })
+
+  it('opens the panel when a station is selected on the map', () => {
+    vi.spyOn(db.settings, 'get').mockResolvedValue(undefined)
+    render(<MapTab />)
+
+    fireEvent.click(screen.getByRole('button', { name: '春風駅' }))
+
+    expect(screen.getByRole('article', { name: /春風駅の情報パネル、中サイズ/ })).toBeInTheDocument()
+  })
+
+  it('opens the panel one step when its handle is dragged upward', () => {
+    vi.spyOn(db.settings, 'get').mockResolvedValue(undefined)
+    render(<MapTab />)
+    const handle = screen.getByRole('separator', { name: '駅情報パネルの大きさを変更' })
+
+    fireEvent.pointerDown(handle, { pointerId: 7, clientY: 220 })
+    fireEvent.pointerMove(handle, { pointerId: 7, clientY: 170 })
+    fireEvent.pointerUp(handle, { pointerId: 7, clientY: 170 })
+
+    expect(screen.getByRole('article', { name: /中サイズ/ })).toBeInTheDocument()
+  })
 })
