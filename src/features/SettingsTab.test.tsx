@@ -57,8 +57,31 @@ describe('SettingsTab backup', () => {
 
     const preview = await screen.findByLabelText('バックアップ内容の確認結果')
     expect(preview).toHaveTextContent('覚えた駅1件')
-    expect(preview).toHaveTextContent('内容を表示しただけで、端末内のデータは変更していません。')
+    expect(preview).toHaveTextContent('この時点では、端末内のデータは変更していません。')
     expect(await db.manualMastery.count()).toBe(1)
+  })
+
+  it('confirms replacement and can return to the pre-restore records', async () => {
+    await db.manualMastery.put({ stationId: 'demo:station:sakura', learned: true, updatedAt: '2026-10-01T00:00:00.000Z' })
+    const backup = await createBackup('2026-10-01T12:34:56.000Z')
+    const file = createBackupFile(backup)
+    Object.defineProperty(file, 'text', { value: async () => JSON.stringify(backup) })
+    await db.manualMastery.clear()
+    await db.manualMastery.put({ stationId: 'demo:station:minato', learned: true, updatedAt: '2026-10-27T00:00:00.000Z' })
+
+    render(<SettingsTab onOpenOnboarding={vi.fn()} />)
+    fireEvent.change(screen.getByLabelText('バックアップファイルを確認する'), { target: { files: [file] } })
+    fireEvent.click(await screen.findByRole('button', { name: '復元の確認へ' }))
+    expect(screen.getByText('現在の記録を、このファイルの内容へ置き換えます')).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: '退避して置き換える' }))
+
+    expect(await screen.findByText('バックアップの内容へ置き換えました。復元前の状態は、この端末内に退避しています。')).toBeInTheDocument()
+    await waitFor(async () => expect(await db.manualMastery.toArray()).toMatchObject([{ stationId: 'demo:station:sakura' }]))
+    fireEvent.click(await screen.findByRole('button', { name: '復元前の状態に戻す' }))
+    fireEvent.click(screen.getByRole('button', { name: '元の状態へ戻す' }))
+
+    expect(await screen.findByText('復元前の状態へ戻しました。')).toBeInTheDocument()
+    await waitFor(async () => expect(await db.manualMastery.toArray()).toMatchObject([{ stationId: 'demo:station:minato' }]))
   })
 
   it('checks writable storage without changing existing settings', async () => {

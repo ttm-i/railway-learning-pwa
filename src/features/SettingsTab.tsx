@@ -1,9 +1,9 @@
 import { useState } from 'react'
 import { useLiveQuery } from 'dexie-react-hooks'
-import { AlertTriangle, CheckCircle2, Database, Download, FileSearch, HardDrive, HelpCircle, ShieldCheck, WifiOff } from 'lucide-react'
+import { AlertTriangle, CheckCircle2, Database, Download, FileSearch, HardDrive, HelpCircle, RotateCcw, ShieldCheck, WifiOff } from 'lucide-react'
 import { demoNetwork } from '../data/demoNetwork'
 import { db, storageChannel } from '../storage/db'
-import { BackupValidationError, countRecordsSinceBackup, createBackup, createBackupFile, createBackupMetadata, getBackupMetadata, maximumBackupFileBytes, parseBackupPreview, presentBackupFile, shouldShowBackupReminder, type BackupPreview } from '../storage/backup'
+import { BackupValidationError, countRecordsSinceBackup, createBackup, createBackupFile, createBackupMetadata, createBackupPreview, getBackupMetadata, getBackupRestoreBlockReason, getRecoverySnapshot, maximumBackupFileBytes, parseBackup, presentBackupFile, recoverySnapshotSettingKey, replaceWithBackup, restoreRecoverySnapshot, shouldShowBackupReminder, type BackupPreview, type RailwayLearningBackup } from '../storage/backup'
 import { usePwaStatus } from '../pwaStatus'
 import { checkStorageHealth, formatStorageBytes, type StorageHealthResult } from '../storage/storageHealth'
 
@@ -17,13 +17,21 @@ export function SettingsTab({ onOpenOnboarding }: SettingsTabProps) {
   const answers = useLiveQuery(() => db.quizAnswers.count(), []) ?? 0
   const routes = useLiveQuery(() => db.routeHistory.count(), []) ?? 0
   const backupMetadataRecord = useLiveQuery(() => db.settings.get('backupMetadata'), [], null)
+  const recoverySnapshotRecord = useLiveQuery(() => db.settings.get(recoverySnapshotSettingKey), [], null)
   const [backupWorking, setBackupWorking] = useState(false)
   const [backupMessage, setBackupMessage] = useState('')
   const [backupPreview, setBackupPreview] = useState<BackupPreview | null>(null)
   const [previewMessage, setPreviewMessage] = useState('')
+  const [restoreCandidate, setRestoreCandidate] = useState<{ backup: RailwayLearningBackup, fileName: string } | null>(null)
+  const [restoreBlockReason, setRestoreBlockReason] = useState('')
+  const [restoreConfirm, setRestoreConfirm] = useState(false)
+  const [restoreWorking, setRestoreWorking] = useState(false)
+  const [restoreMessage, setRestoreMessage] = useState('')
+  const [undoConfirm, setUndoConfirm] = useState(false)
   const [storageChecking, setStorageChecking] = useState(false)
   const [storageHealth, setStorageHealth] = useState<StorageHealthResult | null>(null)
   const backupMetadata = getBackupMetadata(backupMetadataRecord?.value)
+  const recoverySnapshot = getRecoverySnapshot(recoverySnapshotRecord?.value)
   const recordsSinceBackup = backupMetadata
     ? countRecordsSinceBackup(backupMetadata, { learnedStations: learned, quizAnswers: answers, routeHistory: routes })
     : 0
@@ -56,14 +64,55 @@ export function SettingsTab({ onOpenOnboarding }: SettingsTabProps) {
   const inspectBackup = async (file: File) => {
     setBackupPreview(null)
     setPreviewMessage('')
+    setRestoreCandidate(null)
+    setRestoreBlockReason('')
+    setRestoreConfirm(false)
+    setRestoreMessage('')
     if (file.size > maximumBackupFileBytes) {
       setPreviewMessage('ファイルが大きすぎます。20MB以下のバックアップを選んでください。')
       return
     }
     try {
-      setBackupPreview(parseBackupPreview(await file.text()))
+      const backup = parseBackup(await file.text())
+      setBackupPreview(createBackupPreview(backup))
+      setRestoreCandidate({ backup, fileName: file.name })
+      setRestoreBlockReason(getBackupRestoreBlockReason(backup) ?? '')
     } catch (error) {
       setPreviewMessage(error instanceof BackupValidationError ? error.message : 'ファイルを読み取れませんでした。')
+    }
+  }
+
+  const restoreBackup = async () => {
+    if (!restoreCandidate || restoreBlockReason) return
+    setRestoreWorking(true)
+    setRestoreMessage('')
+    try {
+      await replaceWithBackup(restoreCandidate.backup, restoreCandidate.fileName)
+      setRestoreMessage('バックアップの内容へ置き換えました。復元前の状態は、この端末内に退避しています。')
+      setRestoreConfirm(false)
+      setRestoreCandidate(null)
+      setBackupPreview(null)
+    } catch (error) {
+      setRestoreMessage(error instanceof BackupValidationError
+        ? error.message
+        : '復元できませんでした。現在の記録は変更していません。')
+    } finally {
+      setRestoreWorking(false)
+    }
+  }
+
+  const undoRestore = async () => {
+    if (!recoverySnapshot) return
+    setRestoreWorking(true)
+    setRestoreMessage('')
+    try {
+      await restoreRecoverySnapshot(recoverySnapshot)
+      setRestoreMessage('復元前の状態へ戻しました。')
+      setUndoConfirm(false)
+    } catch {
+      setRestoreMessage('元の状態へ戻せませんでした。現在の記録は変更していません。')
+    } finally {
+      setRestoreWorking(false)
     }
   }
 
@@ -139,10 +188,17 @@ export function SettingsTab({ onOpenOnboarding }: SettingsTabProps) {
         <button className="backup-export-button" disabled={backupWorking} onClick={() => void exportBackup()}><Download size={17} aria-hidden="true" />{backupWorking ? '準備しています…' : 'バックアップを書き出す'}</button>
         <p className="backup-message" aria-live="polite">{backupMessage}</p>
         <div className="backup-divider"><span>保存済みファイルの確認</span></div>
+        {recoverySnapshot && <div className="restore-recovery">
+          <RotateCcw size={19} aria-hidden="true" />
+          <div><strong>復元前の状態を退避中</strong><span>{formatBackupDate(recoverySnapshot.createdAt)}の復元前データです。</span></div>
+          {!undoConfirm
+            ? <button disabled={restoreWorking} onClick={() => setUndoConfirm(true)}>復元前の状態に戻す</button>
+            : <div className="restore-confirm-actions"><span>現在の復元結果を取り消しますか？</span><button className="secondary" onClick={() => setUndoConfirm(false)}>やめる</button><button disabled={restoreWorking} onClick={() => void undoRestore()}>{restoreWorking ? '戻しています…' : '元の状態へ戻す'}</button></div>}
+        </div>}
         <label className="backup-inspect-button"><FileSearch size={17} aria-hidden="true" />バックアップファイルを確認する<input type="file" accept="application/json,.json" onChange={(event) => { const file = event.target.files?.[0]; if (file) void inspectBackup(file); event.target.value = '' }} /></label>
         {previewMessage && <p className="backup-preview-error" role="alert">{previewMessage}</p>}
         {backupPreview && <div className="backup-preview" aria-label="バックアップ内容の確認結果">
-          <strong>ファイル内容（確認のみ）</strong>
+          <strong>復元するファイルの内容</strong>
           <dl>
             <div><dt>書き出し日時</dt><dd>{formatBackupDate(backupPreview.exportedAt)}</dd></div>
             <div><dt>覚えた駅</dt><dd>{backupPreview.counts.learnedStations}件</dd></div>
@@ -152,9 +208,19 @@ export function SettingsTab({ onOpenOnboarding }: SettingsTabProps) {
             <div><dt>途中状態</dt><dd>{backupPreview.counts.suspendedActivities}件</dd></div>
             <div><dt>アプリ版</dt><dd>{backupPreview.appVersion}</dd></div>
           </dl>
-          <p>内容を表示しただけで、端末内のデータは変更していません。</p>
+          <p>この時点では、端末内のデータは変更していません。</p>
+          {restoreBlockReason
+            ? <p className="restore-blocked" role="alert">{restoreBlockReason}</p>
+            : !restoreConfirm
+              ? <button className="restore-start-button" onClick={() => setRestoreConfirm(true)}>復元の確認へ</button>
+              : <div className="restore-confirm">
+                <strong>現在の記録を、このファイルの内容へ置き換えます</strong>
+                <span>実行前の状態は自動で退避します。記録を混ぜ合わせる操作ではありません。</span>
+                <div><button className="secondary" onClick={() => setRestoreConfirm(false)}>やめる</button><button disabled={restoreWorking} onClick={() => void restoreBackup()}>{restoreWorking ? '復元しています…' : '退避して置き換える'}</button></div>
+              </div>}
         </div>}
-        <small>復元機能は、安全な確認手順と統合規則を決めてから追加します。</small>
+        <p className="restore-message" role="status" aria-live="polite">{restoreMessage}</p>
+        <small>現在は安全性を優先し、「置き換え」のみ利用できます。記録を混ぜる「統合」は未対応です。</small>
       </article>
       <p className="storage-note"><HardDrive size={16} aria-hidden="true" /><Database size={16} aria-hidden="true" />学習記録はこの端末のブラウザ内に保存されます。</p>
     </section>

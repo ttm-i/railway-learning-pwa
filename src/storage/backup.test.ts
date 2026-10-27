@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
-import { BackupValidationError, countRecordsSinceBackup, createBackup, createBackupFile, createBackupMetadata, getBackupMetadata, parseBackupPreview, shouldShowBackupReminder } from './backup'
+import { BackupValidationError, countRecordsSinceBackup, createBackup, createBackupFile, createBackupMetadata, getBackupMetadata, getRecoverySnapshot, parseBackupPreview, recoverySnapshotSettingKey, replaceWithBackup, restoreRecoverySnapshot, shouldShowBackupReminder } from './backup'
 import { db } from './db'
 
 const tables = [db.settings, db.manualMastery, db.quizAnswers, db.quizSuspension, db.routeSuspension, db.routeHistory]
@@ -70,5 +70,47 @@ describe('backup export', () => {
     expect(shouldShowBackupReminder(metadata, 9, new Date('2026-10-01T00:00:00.000Z'))).toBe(false)
     expect(shouldShowBackupReminder(metadata, 10, new Date('2026-09-30T23:59:59.999Z'))).toBe(false)
     expect(shouldShowBackupReminder(null, 99, new Date('2026-10-01T00:00:00.000Z'))).toBe(false)
+  })
+
+  it('replaces records atomically while keeping a recovery snapshot', async () => {
+    await db.manualMastery.put({ stationId: 'demo:station:sakura', learned: true, updatedAt: '2026-10-01T00:00:00.000Z' })
+    const incoming = await createBackup('2026-10-01T01:00:00.000Z')
+
+    await db.manualMastery.clear()
+    await db.manualMastery.put({ stationId: 'demo:station:minato', learned: true, updatedAt: '2026-10-27T00:00:00.000Z' })
+    await replaceWithBackup(incoming, 'incoming.json', '2026-10-27T01:00:00.000Z')
+
+    expect(await db.manualMastery.toArray()).toMatchObject([{ stationId: 'demo:station:sakura' }])
+    const snapshot = getRecoverySnapshot((await db.settings.get(recoverySnapshotSettingKey))?.value)
+    expect(snapshot).toMatchObject({ sourceFileName: 'incoming.json' })
+    expect(snapshot?.backup.data.manualMastery).toMatchObject([{ stationId: 'demo:station:minato' }])
+
+    const exported = await createBackup('2026-10-27T02:00:00.000Z')
+    expect(exported.data.settings.some((record) => record.key === recoverySnapshotSettingKey)).toBe(false)
+  })
+
+  it('can return to the records held before replacement', async () => {
+    await db.manualMastery.put({ stationId: 'demo:station:sakura', learned: true, updatedAt: '2026-10-01T00:00:00.000Z' })
+    const incoming = await createBackup('2026-10-01T01:00:00.000Z')
+    await db.manualMastery.clear()
+    await db.manualMastery.put({ stationId: 'demo:station:minato', learned: true, updatedAt: '2026-10-27T00:00:00.000Z' })
+
+    await replaceWithBackup(incoming, 'incoming.json')
+    const snapshot = getRecoverySnapshot((await db.settings.get(recoverySnapshotSettingKey))?.value)
+    expect(snapshot).not.toBeNull()
+    await restoreRecoverySnapshot(snapshot!)
+
+    expect(await db.manualMastery.toArray()).toMatchObject([{ stationId: 'demo:station:minato' }])
+    expect(await db.settings.get(recoverySnapshotSettingKey)).toBeUndefined()
+  })
+
+  it('rejects a backup from another release channel without changing records', async () => {
+    await db.manualMastery.put({ stationId: 'demo:station:sakura', learned: true, updatedAt: '2026-10-27T00:00:00.000Z' })
+    const backup = await createBackup('2026-10-27T01:00:00.000Z')
+
+    await expect(replaceWithBackup({ ...backup, storageChannel: 'another-channel' }, 'other.json'))
+      .rejects.toThrow('別の公開版で作られたため')
+    expect(await db.manualMastery.toArray()).toMatchObject([{ stationId: 'demo:station:sakura' }])
+    expect(await db.settings.get(recoverySnapshotSettingKey)).toBeUndefined()
   })
 })
