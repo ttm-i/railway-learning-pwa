@@ -55,4 +55,15 @@ describe('SettingsTab backup', () => {
     expect(preview).toHaveTextContent('内容を表示しただけで、端末内のデータは変更していません。')
     expect(await db.manualMastery.count()).toBe(1)
   })
+
+  it('checks writable storage without changing existing settings', async () => {
+    await db.settings.put({ key: 'existing', value: 'keep' })
+    render(<SettingsTab onOpenOnboarding={vi.fn()} />)
+
+    fireEvent.click(await screen.findByRole('button', { name: '保存状態を確認する' }))
+
+    expect(await screen.findByText('端末内への保存を確認しました')).toBeInTheDocument()
+    expect(await db.settings.get('__storageHealthCheck')).toBeUndefined()
+    expect(await db.settings.get('existing')).toMatchObject({ value: 'keep' })
+  })
 })

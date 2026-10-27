@@ -1,10 +1,11 @@
 import { useState } from 'react'
 import { useLiveQuery } from 'dexie-react-hooks'
-import { Database, Download, FileSearch, HardDrive, HelpCircle, ShieldCheck, WifiOff } from 'lucide-react'
+import { AlertTriangle, CheckCircle2, Database, Download, FileSearch, HardDrive, HelpCircle, ShieldCheck, WifiOff } from 'lucide-react'
 import { demoNetwork } from '../data/demoNetwork'
 import { db, storageChannel } from '../storage/db'
 import { BackupValidationError, createBackup, createBackupFile, maximumBackupFileBytes, parseBackupPreview, presentBackupFile, type BackupPreview } from '../storage/backup'
 import { usePwaStatus } from '../pwaStatus'
+import { checkStorageHealth, formatStorageBytes, type StorageHealthResult } from '../storage/storageHealth'
 
 interface SettingsTabProps {
   onOpenOnboarding: () => void
@@ -19,6 +20,8 @@ export function SettingsTab({ onOpenOnboarding }: SettingsTabProps) {
   const [backupMessage, setBackupMessage] = useState('')
   const [backupPreview, setBackupPreview] = useState<BackupPreview | null>(null)
   const [previewMessage, setPreviewMessage] = useState('')
+  const [storageChecking, setStorageChecking] = useState(false)
+  const [storageHealth, setStorageHealth] = useState<StorageHealthResult | null>(null)
 
   const exportBackup = async () => {
     setBackupWorking(true)
@@ -56,6 +59,12 @@ export function SettingsTab({ onOpenOnboarding }: SettingsTabProps) {
     year: 'numeric', month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit'
   }).format(new Date(value))
 
+  const inspectStorage = async () => {
+    setStorageChecking(true)
+    setStorageHealth(await checkStorageHealth())
+    setStorageChecking(false)
+  }
+
   return (
     <section className="screen" aria-labelledby="settings-title">
       <header className="screen-heading"><div><span className="eyebrow">データとアプリ</span><h1 id="settings-title">設定</h1></div></header>
@@ -82,6 +91,24 @@ export function SettingsTab({ onOpenOnboarding }: SettingsTabProps) {
           <div><dt>オフライン準備</dt><dd className={pwaStatus.offlineReady ? 'ready' : 'waiting'}>{pwaStatus.offlineReady ? '準備完了' : pwaStatus.registrationError ? '確認できません' : '準備中'}</dd></div>
         </dl>
         <p>{pwaStatus.offlineReady ? '通信を切っても、保存済みの地図・クイズ・経路機能を利用できます。' : '通信がある状態でこのアプリを一度開いたままにしてください。'}</p>
+      </article>
+      <article className="settings-card storage-health-card">
+        <h2><HardDrive size={20} aria-hidden="true" />保存の安全確認</h2>
+        <p>一時的な確認データを書いてすぐ削除し、現在もこの端末へ保存できるか確かめます。学習記録は変更しません。</p>
+        <button className="storage-check-button" disabled={storageChecking} onClick={() => void inspectStorage()}>{storageChecking ? '確認しています…' : '保存状態を確認する'}</button>
+        {storageHealth && <div className={`storage-health-result ${!storageHealth.writable || storageHealth.lowSpace ? 'warning' : 'success'}`} role="status">
+          {storageHealth.writable && !storageHealth.lowSpace ? <CheckCircle2 size={20} aria-hidden="true" /> : <AlertTriangle size={20} aria-hidden="true" />}
+          <div>
+            <strong>{!storageHealth.writable ? '保存できませんでした' : storageHealth.lowSpace ? '空き容量が少ない可能性があります' : '端末内への保存を確認しました'}</strong>
+            {storageHealth.remainingBytes !== undefined ? <span>ブラウザ用の空き目安：{formatStorageBytes(storageHealth.remainingBytes)}</span> : <span>容量の数値はiPhone側で管理されています。</span>}
+            {!storageHealth.writable && <span>先にバックアップを書き出し、iPhoneの空き容量をご確認ください。</span>}
+          </div>
+        </div>}
+        <ul className="storage-safety-tips">
+          <li>大切な記録は定期的にバックアップを書き出す</li>
+          <li>iPhoneの空き容量を十分に保つ</li>
+          <li>このアプリやSafariのWebサイトデータを削除すると、記録が失われる可能性があります</li>
+        </ul>
       </article>
       <article className="settings-card backup-card">
         <h2><Download size={20} aria-hidden="true" />バックアップ</h2>
