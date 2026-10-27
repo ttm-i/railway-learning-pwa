@@ -1,7 +1,7 @@
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { Check, MapPinned, Search, TrainFront, X } from 'lucide-react'
-import { RailMap } from '../components/RailMap'
+import { fullMapViewport, normalizeMapViewport, RailMap, type MapViewport } from '../components/RailMap'
 import { demoNetwork } from '../data/demoNetwork'
 import { getLine, getNeighbors, getStation } from '../domain/graph'
 import { searchNetwork } from '../domain/search'
@@ -12,11 +12,29 @@ export function MapTab() {
   const [selectedId, setSelectedId] = useState<StableId>('demo:station:midori')
   const [selectedLineId, setSelectedLineId] = useState<StableId | undefined>()
   const [query, setQuery] = useState('')
+  const [viewport, setViewport] = useState<MapViewport>(fullMapViewport)
+  const restoredViewport = useRef(false)
+  const savedViewport = useLiveQuery(() => db.settings.get('mapViewport'), [])
   const station = getStation(demoNetwork, selectedId)!
   const neighbors = getNeighbors(demoNetwork, selectedId)
   const mastery = useLiveQuery(() => db.manualMastery.get(selectedId), [selectedId])
   const lines = demoNetwork.lines.filter((line) => line.stationIds.includes(selectedId))
   const searchResults = searchNetwork(demoNetwork, query)
+
+  useEffect(() => {
+    if (restoredViewport.current || savedViewport === undefined) return
+    restoredViewport.current = true
+    const value = savedViewport?.value
+    if (!value || typeof value !== 'object') return
+    const candidate = value as Partial<MapViewport>
+    if ([candidate.centerX, candidate.centerY, candidate.zoom].every((item) => typeof item === 'number' && Number.isFinite(item))) {
+      setViewport(normalizeMapViewport(candidate as MapViewport))
+    }
+  }, [savedViewport])
+
+  const saveViewport = (next: MapViewport) => {
+    void db.settings.put({ key: 'mapViewport', value: next })
+  }
 
   const selectStation = (stationId: StableId) => {
     setSelectedId(stationId)
@@ -29,7 +47,18 @@ export function MapTab() {
     if (!line) return
     setSelectedLineId(lineId)
     setSelectedId(line.stationIds[0])
+    setViewport(fullMapViewport)
+    saveViewport(fullMapViewport)
     setQuery('')
+  }
+
+  const selectSearchStation = (stationId: StableId) => {
+    const result = getStation(demoNetwork, stationId)
+    selectStation(stationId)
+    if (!result) return
+    const focused = normalizeMapViewport({ centerX: result.x, centerY: result.y, zoom: 1.8 })
+    setViewport(focused)
+    saveViewport(focused)
   }
 
   const toggleMastery = async () => {
@@ -55,7 +84,7 @@ export function MapTab() {
         {query && (
           <div className="search-results" aria-live="polite">
             {searchResults.stations.map((result) => (
-              <button key={result.stableId} onClick={() => selectStation(result.stableId)}>
+              <button key={result.stableId} onClick={() => selectSearchStation(result.stableId)}>
                 <MapPinned size={17} aria-hidden="true" /><span><strong>{result.canonicalName}</strong><small>駅</small></span>
               </button>
             ))}
@@ -68,7 +97,15 @@ export function MapTab() {
           </div>
         )}
       </div>
-      <RailMap selectedStationId={selectedId} selectedLineId={selectedLineId} onSelectStation={selectStation} />
+      <RailMap
+        selectedStationId={selectedId}
+        selectedLineId={selectedLineId}
+        onSelectStation={selectStation}
+        interactiveViewport
+        viewport={viewport}
+        onViewportChange={setViewport}
+        onViewportCommit={saveViewport}
+      />
       {selectedLineId && (
         <div className="selected-line-banner">
           <span>選択中の路線</span><strong>{getLine(demoNetwork, selectedLineId)?.name}</strong>

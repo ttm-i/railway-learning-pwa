@@ -47,7 +47,15 @@ main { padding-bottom: calc(92px + env(safe-area-inset-bottom)); }
 .pwa-status-notice button { flex: none; padding: 7px 10px; border: 0; border-radius: 10px; color: #fff; background: var(--green); font: inherit; font-size: .72rem; font-weight: 800; }
 .pwa-status-notice.offline { color: #51441c; background: #fff3c9; border-color: #eadb9b; }
 .map-frame { overflow: hidden; border: 1px solid var(--line); border-radius: 25px; background: #edf4f0; box-shadow: var(--shadow); }
+.map-canvas { position: relative; overflow: hidden; }
 .rail-map { display: block; width: 100%; aspect-ratio: 8 / 7; }
+.interactive-map .rail-map { touch-action: none; user-select: none; }
+.map-controls { position: absolute; z-index: 2; top: 10px; right: 10px; display: grid; overflow: hidden; border: 1px solid rgba(23, 60, 53, .18); border-radius: 13px; background: rgba(255, 255, 255, .92); box-shadow: 0 5px 16px rgba(29, 54, 47, .16); }
+.map-controls button { display: grid; place-items: center; width: 44px; height: 44px; padding: 0; border: 0; border-bottom: 1px solid var(--line); color: var(--green); background: transparent; }
+.map-controls button:last-child { border-bottom: 0; }
+.map-controls button:disabled { color: #aeb8b3; }
+.map-controls button:focus-visible { outline: 3px solid #ffb42a; outline-offset: -3px; }
+.map-zoom-status { position: absolute; z-index: 2; right: 10px; bottom: 9px; min-width: 44px; padding: 4px 7px; border-radius: 8px; color: #fff; background: rgba(23, 60, 53, .82); font-size: .67rem; font-weight: 800; text-align: center; pointer-events: none; }
 .map-background { fill: #f2f7f3; }
 .river { fill: none; stroke: #bfdfdc; stroke-width: 20; opacity: .65; }
 .rail-line { stroke-width: 8; stroke-linecap: round; }
@@ -384,6 +392,8 @@ main { padding-bottom: calc(92px + env(safe-area-inset-bottom)); }
   .map-background { fill: #16241f; }
   .station-label { fill: #edf5f1; stroke: #16241f; }
   .map-frame { background: #16241f; }
+  .map-controls { border-color: #40544d; background: rgba(22, 36, 31, .94); }
+  .map-controls button { color: #dceae4; border-color: #40544d; }
   .line-chips span, .metric-row span, .answer-grid button { background: #1d2d27; }
   .quiz-format { background: #1b2a25; }
   .route-section-tabs { background: #1b2a25; }
