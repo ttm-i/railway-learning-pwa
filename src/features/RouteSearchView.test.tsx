@@ -6,11 +6,13 @@ import { RouteSearchView } from './RouteSearchView'
 describe('RouteSearchView', () => {
   beforeEach(async () => {
     await db.settings.delete('routeSearchOptions')
+    await db.settings.delete('routeSearchFavorites')
   })
 
   afterEach(async () => {
     cleanup()
     await db.settings.delete('routeSearchOptions')
+    await db.settings.delete('routeSearchFavorites')
   })
 
   it('shows a candidate, applies an ordered via station, and saves conditions', async () => {
@@ -40,6 +42,34 @@ describe('RouteSearchView', () => {
     await waitFor(async () => {
       const saved = await db.settings.get('routeSearchOptions')
       expect(saved?.value).toMatchObject({ excludedLineIds: ['demo:line:aozora'] })
+    })
+  })
+
+  it('saves, loads, and safely deletes a favorite search', async () => {
+    render(<RouteSearchView />)
+    await screen.findByRole('heading', { name: /春風.*星見ヶ丘/ })
+
+    fireEvent.change(screen.getByLabelText('出発駅'), { target: { value: 'demo:station:sakura' } })
+    fireEvent.change(screen.getByLabelText('この検索条件に名前を付ける'), { target: { value: '帰り道' } })
+    fireEvent.click(screen.getByRole('button', { name: '保存' }))
+
+    expect(await screen.findByText('「帰り道」を保存しました。')).toBeInTheDocument()
+    await waitFor(async () => {
+      const record = await db.settings.get('routeSearchFavorites')
+      expect(record?.value).toEqual([expect.objectContaining({ name: '帰り道', startId: 'demo:station:sakura' })])
+    })
+
+    fireEvent.change(screen.getByLabelText('出発駅'), { target: { value: 'demo:station:harukaze' } })
+    fireEvent.click(screen.getByRole('button', { name: /帰り道.*さくら野.*星見ヶ丘/ }))
+    expect(screen.getByLabelText('出発駅')).toHaveValue('demo:station:sakura')
+
+    fireEvent.click(screen.getByRole('button', { name: '帰り道を削除' }))
+    expect(screen.getByText('削除しますか？')).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: '削除' }))
+    expect(await screen.findByText('「帰り道」を削除しました。')).toBeInTheDocument()
+    await waitFor(async () => {
+      const record = await db.settings.get('routeSearchFavorites')
+      expect(record?.value).toEqual([])
     })
   })
 })

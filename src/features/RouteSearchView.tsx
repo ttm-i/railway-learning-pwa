@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useLiveQuery } from 'dexie-react-hooks'
-import { ArrowDown, ArrowLeftRight, ArrowUp, MapPinned, Play, Plus, X } from 'lucide-react'
+import { ArrowDown, ArrowLeftRight, ArrowUp, MapPinned, Play, Plus, Star, Trash2, X } from 'lucide-react'
 import { RailMap } from '../components/RailMap'
 import { demoNetwork } from '../data/demoNetwork'
 import { findEdge, getStation } from '../domain/graph'
@@ -22,6 +22,12 @@ export interface RouteSearchGameConditions {
   excludedLineIds: StableId[]
 }
 
+interface RouteSearchFavorite extends RouteSearchGameConditions {
+  id: string
+  name: string
+  createdAt: string
+}
+
 const initialStart: StableId = 'demo:station:harukaze'
 const initialDestination: StableId = 'demo:station:hoshimi'
 const stationIds = new Set(demoNetwork.stations.map((station) => station.stableId))
@@ -39,14 +45,34 @@ function isSavedOptions(value: unknown): value is SavedRouteSearchOptions {
   )
 }
 
+function isFavorite(value: unknown): value is RouteSearchFavorite {
+  if (!value || typeof value !== 'object') return false
+  const favorite = value as Partial<RouteSearchFavorite>
+  return Boolean(
+    typeof favorite.id === 'string'
+    && typeof favorite.name === 'string' && favorite.name.trim().length > 0
+    && typeof favorite.createdAt === 'string'
+    && Array.isArray(favorite.excludedLineIds)
+    && isSavedOptions(favorite)
+  )
+}
+
+function getFavorites(value: unknown): RouteSearchFavorite[] {
+  return Array.isArray(value) ? value.filter(isFavorite) : []
+}
+
 export function RouteSearchView({ onStartGame }: { onStartGame?: (conditions: RouteSearchGameConditions) => void }) {
   const saved = useLiveQuery(() => db.settings.get('routeSearchOptions'), [], null)
+  const savedFavorites = useLiveQuery(() => db.settings.get('routeSearchFavorites'), [], null)
   const [ready, setReady] = useState(false)
   const [startId, setStartId] = useState<StableId>(initialStart)
   const [destinationId, setDestinationId] = useState<StableId>(initialDestination)
   const [viaIds, setViaIds] = useState<StableId[]>([])
   const [excludedLineIds, setExcludedLineIds] = useState<StableId[]>([])
   const [selectedIndex, setSelectedIndex] = useState(0)
+  const [favoriteName, setFavoriteName] = useState('')
+  const [favoriteMessage, setFavoriteMessage] = useState('')
+  const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null)
 
   useEffect(() => {
     if (ready || saved === null) return
@@ -70,6 +96,7 @@ export function RouteSearchView({ onStartGame }: { onStartGame?: (conditions: Ro
     [startId, destinationId, viaIds, excludedLineIds]
   )
   const selected = candidates[Math.min(selectedIndex, candidates.length - 1)]
+  const favorites = getFavorites(savedFavorites?.value)
   const availableViaStations = demoNetwork.stations.filter(
     (station) => station.stableId !== startId && station.stableId !== destinationId && !viaIds.includes(station.stableId)
   )
@@ -96,10 +123,52 @@ export function RouteSearchView({ onStartGame }: { onStartGame?: (conditions: Ro
     })
   }
 
+  const saveFavorite = async () => {
+    const name = favoriteName.trim()
+    if (!name) return
+    const favorite: RouteSearchFavorite = {
+      id: crypto.randomUUID(), name, createdAt: new Date().toISOString(),
+      startId, destinationId, viaIds, excludedLineIds
+    }
+    await db.settings.put({ key: 'routeSearchFavorites', value: [favorite, ...favorites] })
+    setFavoriteName('')
+    setFavoriteMessage(`「${name}」を保存しました。`)
+  }
+
+  const loadFavorite = (favorite: RouteSearchFavorite) => {
+    setStartId(favorite.startId)
+    setDestinationId(favorite.destinationId)
+    setViaIds(favorite.viaIds)
+    setExcludedLineIds(favorite.excludedLineIds)
+    setFavoriteMessage(`「${favorite.name}」を呼び出しました。`)
+    setPendingDeleteId(null)
+  }
+
+  const deleteFavorite = async (favorite: RouteSearchFavorite) => {
+    await db.settings.put({ key: 'routeSearchFavorites', value: favorites.filter((item) => item.id !== favorite.id) })
+    setFavoriteMessage(`「${favorite.name}」を削除しました。`)
+    setPendingDeleteId(null)
+  }
+
   if (!ready) return <div className="loading-card">検索条件を準備しています…</div>
 
   return (
     <div className="route-search-view">
+      <section className="route-favorites" aria-labelledby="route-favorites-title">
+        <div className="route-favorites-heading"><span><Star size={16} aria-hidden="true" /><strong id="route-favorites-title">保存した検索条件</strong></span><small>{favorites.length}件</small></div>
+        {favorites.length === 0 ? <p>よく使う条件を、下の入力欄から保存できます。</p> : <div className="route-favorite-list">
+          {favorites.map((favorite) => {
+            const start = getStation(demoNetwork, favorite.startId)?.canonicalName
+            const destination = getStation(demoNetwork, favorite.destinationId)?.canonicalName
+            return <div className="route-favorite" key={favorite.id}>
+              <button className="route-favorite-load" onClick={() => loadFavorite(favorite)}><strong>{favorite.name}</strong><small>{start} → {destination}{favorite.viaIds.length > 0 ? `・経由${favorite.viaIds.length}駅` : ''}{favorite.excludedLineIds.length > 0 ? `・除外${favorite.excludedLineIds.length}路線` : ''}</small></button>
+              {pendingDeleteId !== favorite.id ? <button className="route-favorite-delete" aria-label={`${favorite.name}を削除`} onClick={() => setPendingDeleteId(favorite.id)}><Trash2 size={16} aria-hidden="true" /></button> : <div className="route-favorite-confirm"><span>削除しますか？</span><button onClick={() => setPendingDeleteId(null)}>やめる</button><button className="danger" onClick={() => void deleteFavorite(favorite)}>削除</button></div>}
+            </div>
+          })}
+        </div>}
+        <p className="favorite-message" aria-live="polite">{favoriteMessage}</p>
+      </section>
+
       <div className="search-endpoints">
         <label>出発駅
           <select value={startId} onChange={(event) => updateEndpoint('start', event.target.value as StableId)}>
@@ -149,6 +218,13 @@ export function RouteSearchView({ onStartGame }: { onStartGame?: (conditions: Ro
           </label>
         ))}
       </fieldset>
+
+      <div className="favorite-save">
+        <label>この検索条件に名前を付ける
+          <input value={favoriteName} maxLength={30} onChange={(event) => setFavoriteName(event.target.value)} placeholder="例：いつもの経路" />
+        </label>
+        <button disabled={!favoriteName.trim()} onClick={() => void saveFavorite()}><Star size={16} aria-hidden="true" />保存</button>
+      </div>
 
       {startId === destinationId ? (
         <div className="route-search-empty">出発駅と目的駅に別の駅を選んでください。</div>
