@@ -14,7 +14,7 @@
 ## ユーザー側（IndexedDB）
 - `settings`: studyRegions, theme, nameVisibility, geographyLayers, lastMapView, lastQuizOptions, lastRouteOptions, onboardingComplete。
 - `manualMastery`: key = stationId or (lineId,stationId), learned, updatedAt。
-- `quizAnswers`: UUID, questionId/seed, format, answeredAt, answer, correct, retryOf, datasetVersion。
+- `quizAnswers`: UUID, questionId/seed, format, answeredAt, answer（判別できた駅ID・任意）, textAnswer（文字入力時）, correct, retryOf, datasetVersion。
 - `autoMastery`: computed station/line scope, recency/streak/interval evidence; manualMasteryとは独立。
 - `quizSuspension`: full pending question set and progress; maximum one active。
 - `routeSuspension`: full game state, scenario/version, path steps, conditions/hints/view; maximum one active。

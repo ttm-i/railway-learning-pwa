@@ -18,7 +18,8 @@ export interface QuizAnswerRecord {
   id: string
   questionId: string
   answeredAt: string
-  answer: StableId
+  answer?: StableId
+  textAnswer?: string
   correct: boolean
   datasetVersion: string
 }
@@ -29,6 +30,8 @@ export interface QuizSuspensionRecord {
   currentIndex: number
   format: QuizFormat
   selectedAnswerId?: StableId
+  textDraft?: string
+  textAnswerCorrect?: boolean
   correctCount: number
   datasetVersion: string
   updatedAt: string

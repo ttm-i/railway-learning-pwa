@@ -16,6 +16,7 @@ export interface Line {
 export interface Station {
   stableId: StableId
   canonicalName: string
+  aliases?: string[]
   x: number
   y: number
 }

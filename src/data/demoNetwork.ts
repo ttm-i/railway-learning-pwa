@@ -42,13 +42,13 @@ export const demoNetwork: DemoDataset = {
     }
   ],
   stations: [
-    { stableId: 'demo:station:harukaze', canonicalName: '春風', x: 60, y: 214 },
-    { stableId: 'demo:station:midori', canonicalName: 'みどり中央', x: 152, y: 176 },
-    { stableId: 'demo:station:hikari', canonicalName: 'ひかり台', x: 250, y: 136 },
-    { stableId: 'demo:station:minato', canonicalName: 'みなと', x: 344, y: 98 },
-    { stableId: 'demo:station:sakura', canonicalName: 'さくら野', x: 90, y: 72 },
-    { stableId: 'demo:station:komorebi', canonicalName: 'こもれび', x: 236, y: 240 },
-    { stableId: 'demo:station:hoshimi', canonicalName: '星見ヶ丘', x: 322, y: 292 }
+    { stableId: 'demo:station:harukaze', canonicalName: '春風', aliases: ['はるかぜ'], x: 60, y: 214 },
+    { stableId: 'demo:station:midori', canonicalName: 'みどり中央', aliases: ['みどりちゅうおう'], x: 152, y: 176 },
+    { stableId: 'demo:station:hikari', canonicalName: 'ひかり台', aliases: ['ひかりだい'], x: 250, y: 136 },
+    { stableId: 'demo:station:minato', canonicalName: 'みなと', aliases: ['ミナト'], x: 344, y: 98 },
+    { stableId: 'demo:station:sakura', canonicalName: 'さくら野', aliases: ['さくらの'], x: 90, y: 72 },
+    { stableId: 'demo:station:komorebi', canonicalName: 'こもれび', aliases: ['コモレビ'], x: 236, y: 240 },
+    { stableId: 'demo:station:hoshimi', canonicalName: '星見ヶ丘', aliases: ['星見ケ丘', 'ほしみがおか'], x: 322, y: 292 }
   ],
   edges: [
     edge('ao-1', 'demo:station:harukaze', 'demo:station:midori', 'demo:line:aozora'),
