@@ -4,6 +4,7 @@ import { LocateFixed, Minus, Plus } from 'lucide-react'
 import type { StableId } from '../domain/types'
 import { demoNetwork } from '../data/demoNetwork'
 import { findEdge } from '../domain/graph'
+import { layoutMapLabels } from '../domain/mapLabels'
 
 interface RailMapProps {
   selectedStationId?: StableId
@@ -71,6 +72,16 @@ export function RailMap({
   const viewWidth = 400 / normalizedViewport.zoom
   const viewHeight = 350 / normalizedViewport.zoom
   const viewBox = `${normalizedViewport.centerX - viewWidth / 2} ${normalizedViewport.centerY - viewHeight / 2} ${viewWidth} ${viewHeight}`
+  const stagedLabels = interactiveViewport && !hideStationNames
+    ? layoutMapLabels(demoNetwork, {
+      minX: normalizedViewport.centerX - viewWidth / 2,
+      minY: normalizedViewport.centerY - viewHeight / 2,
+      width: viewWidth,
+      height: viewHeight,
+      zoom: normalizedViewport.zoom
+    }, selectedStationId, selectedLineId)
+    : []
+  const stagedLabelByStation = new Map(stagedLabels.map((label) => [label.stationId, label]))
 
   viewportRef.current = normalizedViewport
 
@@ -253,6 +264,8 @@ export function RailMap({
               ? `${station.canonicalName}駅${candidateNumber ? `、候補 ${candidateNumber}` : ''}`
               : candidateNumber ? `候補 ${candidateNumber}` : '駅（名前を非表示）'
             : `${station.canonicalName}駅`
+          const stagedLabel = stagedLabelByStation.get(station.stableId)
+          const showLabel = Boolean(visibleLabel && (!interactiveViewport || hideStationNames || stagedLabel))
           return (
             <g
               key={station.stableId}
@@ -265,6 +278,7 @@ export function RailMap({
                 if (event.key === 'Enter' || event.key === ' ') onSelectStation?.(station.stableId)
               }}
             >
+              <circle cx={station.x} cy={station.y} r="18" className="station-hit" />
               {isDestination && <circle cx={station.x} cy={station.y} r="16" className="destination-ring" />}
               {isCandidate && <circle cx={station.x} cy={station.y} r="14" className="candidate-ring" />}
               <circle
@@ -273,7 +287,17 @@ export function RailMap({
                 r={isSelected ? 9 : 7}
                 className={`station-dot ${isSelected ? 'selected' : ''} ${isInRoute ? 'in-route' : ''}`}
               />
-              {visibleLabel && <text x={station.x} y={station.y - 16} textAnchor="middle" className="station-label">{visibleLabel}</text>}
+              {showLabel && (
+                <text
+                  x={stagedLabel?.x ?? station.x}
+                  y={stagedLabel?.y ?? station.y - 16}
+                  textAnchor={stagedLabel?.textAnchor ?? 'middle'}
+                  className="station-label"
+                  data-label-station-id={station.stableId}
+                >
+                  {visibleLabel}
+                </text>
+              )}
             </g>
           )
         })}

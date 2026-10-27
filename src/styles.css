@@ -67,6 +67,7 @@ main { padding-bottom: calc(92px + env(safe-area-inset-bottom)); }
 .route-highlight { stroke: #fff; stroke-width: 16; stroke-linecap: round; opacity: .92; }
 .station-target { cursor: pointer; outline: none; }
 .station-target:focus .station-dot { stroke: #ffb42a; stroke-width: 6; }
+.station-hit { fill: transparent; stroke: transparent; pointer-events: all; }
 .station-dot { fill: #fff; stroke: var(--green); stroke-width: 3; }
 .station-dot.selected { fill: #173c35; stroke: #fff; stroke-width: 4; }
 .station-dot.in-route { fill: #f8bb4c; }

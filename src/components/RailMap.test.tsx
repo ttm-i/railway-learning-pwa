@@ -29,8 +29,10 @@ describe('RailMap viewport', () => {
   it('zooms with controls and returns to the full map', () => {
     render(<InteractiveMap />)
 
+    expect(screen.queryByText('ひかり台')).not.toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: '地図を拡大' }))
     expect(screen.getByText('135%')).toBeInTheDocument()
+    expect(screen.getByText('ひかり台')).toBeInTheDocument()
     expect(screen.getByTestId('rail-map-svg')).not.toHaveAttribute('viewBox', '0 0 400 350')
 
     fireEvent.click(screen.getByRole('button', { name: '地図全体を表示' }))
