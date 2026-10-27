@@ -68,4 +68,17 @@ describe('MapTab viewport', () => {
 
     expect(screen.getByRole('article', { name: /中サイズ/ })).toBeInTheDocument()
   })
+
+  it('shows line endpoints and stations when a line is selected on the map', () => {
+    vi.spyOn(db.settings, 'get').mockResolvedValue(undefined)
+    render(<MapTab />)
+
+    fireEvent.click(screen.getByRole('button', { name: 'あおぞら線を選択' }))
+
+    expect(screen.getByRole('article', { name: /あおぞら線の路線情報パネル、中サイズ/ })).toBeInTheDocument()
+    expect(screen.getByText('きせつ鉄道（架空）')).toBeInTheDocument()
+    expect(screen.getByText('所属駅（4駅）')).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: /春風.*始点/ }))
+    expect(screen.getByRole('article', { name: /春風駅の情報パネル、中サイズ/ })).toBeInTheDocument()
+  })
 })

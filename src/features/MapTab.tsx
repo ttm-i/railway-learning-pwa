@@ -29,6 +29,9 @@ export function MapTab() {
   const neighbors = getNeighbors(demoNetwork, selectedId)
   const mastery = useLiveQuery(() => db.manualMastery.get(selectedId), [selectedId])
   const lines = demoNetwork.lines.filter((line) => line.stationIds.includes(selectedId))
+  const selectedLine = selectedLineId ? getLine(demoNetwork, selectedLineId) : undefined
+  const selectedOperator = selectedLine ? demoNetwork.operators.find((operator) => operator.stableId === selectedLine.operatorId) : undefined
+  const lineTransferStations = selectedLine?.stationIds.filter((stationId) => demoNetwork.lines.filter((line) => line.stationIds.includes(stationId)).length > 1) ?? []
   const searchResults = searchNetwork(demoNetwork, query)
 
   useEffect(() => {
@@ -53,14 +56,16 @@ export function MapTab() {
     if (openSheet) setSheetLevel('half')
   }
 
-  const selectLine = (lineId: StableId) => {
+  const selectLine = (lineId: StableId, showWholeLine = true) => {
     const line = getLine(demoNetwork, lineId)
     if (!line) return
     setSelectedLineId(lineId)
-    setSelectedId(line.stationIds[0])
-    setViewport(fullMapViewport)
-    setSheetLevel('peek')
-    saveViewport(fullMapViewport)
+    if (!line.stationIds.includes(selectedId)) setSelectedId(line.stationIds[0])
+    if (showWholeLine) {
+      setViewport(fullMapViewport)
+      saveViewport(fullMapViewport)
+    }
+    setSheetLevel('half')
     setQuery('')
   }
 
@@ -146,6 +151,7 @@ export function MapTab() {
           selectedStationId={selectedId}
           selectedLineId={selectedLineId}
           onSelectStation={selectStation}
+          onSelectLine={(lineId) => selectLine(lineId, false)}
           interactiveViewport
           viewport={viewport}
           onViewportChange={setViewport}
@@ -153,7 +159,7 @@ export function MapTab() {
         />
         <article
           className={`detail-card map-detail-sheet level-${sheetLevel}`}
-          aria-label={`${station.canonicalName}駅の情報パネル、${sheetLevelNames[sheetLevel]}サイズ`}
+          aria-label={`${selectedLine ? `${selectedLine.name}の路線情報` : `${station.canonicalName}駅の情報`}パネル、${sheetLevelNames[sheetLevel]}サイズ`}
           style={{ transform: `translateY(${sheetDragOffset}px)` }}
         >
           <div
@@ -177,8 +183,11 @@ export function MapTab() {
             <span />
           </div>
           <div className="detail-card__heading">
-            <div className="station-icon"><MapPinned size={20} aria-hidden="true" /></div>
-            <div><span className="eyebrow">選択中の駅</span><h2>{station.canonicalName}</h2></div>
+            <div className="station-icon">{selectedLine ? <TrainFront size={20} aria-hidden="true" /> : <MapPinned size={20} aria-hidden="true" />}</div>
+            <div>
+              <span className="eyebrow">{selectedLine ? '選択中の路線' : '選択中の駅'}</span>
+              <h2>{selectedLine?.name ?? station.canonicalName}</h2>
+            </div>
             <div className="sheet-size-controls" aria-label="駅情報パネルの表示サイズ">
               <button type="button" onClick={() => changeSheetLevel(-1)} disabled={sheetLevel === 'peek'} aria-label="駅情報パネルを小さくする">
                 <ChevronDown size={19} aria-hidden="true" />
@@ -189,30 +198,46 @@ export function MapTab() {
             </div>
           </div>
           <div className="sheet-detail-content">
-            <button className={`mastery-button ${mastery?.learned ? 'active' : ''}`} onClick={toggleMastery}>
-              <Check size={17} aria-hidden="true" />{mastery?.learned ? '覚えた' : '覚えたにする'}
-            </button>
-            <div className="line-chips">
-              {lines.map((line) => <span key={line.stableId}><i style={{ background: line.color }} />{line.name}</span>)}
-            </div>
-            <div className="neighbor-list">
-              <h3><TrainFront size={17} aria-hidden="true" /> 隣の駅</h3>
-              {neighbors.map(({ stationId, edge }) => (
-                <button key={stationId} onClick={() => selectStation(stationId)}>
-                  <span>{getStation(demoNetwork, stationId)?.canonicalName}</span>
-                  <small>{getLine(demoNetwork, edge.lineId)?.name}</small>
+            {selectedLine ? (
+              <div className="line-detail-content">
+                <p className="line-operator">{selectedOperator?.displayName}</p>
+                <div className="line-endpoints">
+                  <div><span>始点</span><strong>{getStation(demoNetwork, selectedLine.stationIds[0])?.canonicalName}</strong></div>
+                  <div><span>終点</span><strong>{getStation(demoNetwork, selectedLine.stationIds.at(-1)!)?.canonicalName}</strong></div>
+                </div>
+                <div className="line-stop-list">
+                  <h3><TrainFront size={17} aria-hidden="true" /> 所属駅（{selectedLine.stationIds.length}駅）</h3>
+                  {selectedLine.stationIds.map((stationId, index) => (
+                    <button key={stationId} onClick={() => selectStation(stationId)}>
+                      <span className="stop-number">{index + 1}</span>
+                      <strong>{getStation(demoNetwork, stationId)?.canonicalName}</strong>
+                      <small>{lineTransferStations.includes(stationId) ? '乗換駅' : index === 0 ? '始点' : index === selectedLine.stationIds.length - 1 ? '終点' : ''}</small>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            ) : (
+              <>
+                <button className={`mastery-button ${mastery?.learned ? 'active' : ''}`} onClick={toggleMastery}>
+                  <Check size={17} aria-hidden="true" />{mastery?.learned ? '覚えた' : '覚えたにする'}
                 </button>
-              ))}
-            </div>
+                <div className="line-chips">
+                  {lines.map((line) => <button key={line.stableId} onClick={() => selectLine(line.stableId, false)}><i style={{ background: line.color }} />{line.name}</button>)}
+                </div>
+                <div className="neighbor-list">
+                  <h3><TrainFront size={17} aria-hidden="true" /> 隣の駅</h3>
+                  {neighbors.map(({ stationId, edge }) => (
+                    <button key={stationId} onClick={() => selectStation(stationId)}>
+                      <span>{getStation(demoNetwork, stationId)?.canonicalName}</span>
+                      <small>{getLine(demoNetwork, edge.lineId)?.name}</small>
+                    </button>
+                  ))}
+                </div>
+              </>
+            )}
           </div>
         </article>
       </div>
-      {selectedLineId && (
-        <div className="selected-line-banner">
-          <span>選択中の路線</span><strong>{getLine(demoNetwork, selectedLineId)?.name}</strong>
-          <button onClick={() => setSelectedLineId(undefined)}>強調を解除</button>
-        </div>
-      )}
     </section>
   )
 }

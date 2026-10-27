@@ -15,6 +15,7 @@ interface RailMapProps {
   hideLineNames?: boolean
   alwaysVisibleStationIds?: StableId[]
   onSelectStation?: (stationId: StableId) => void
+  onSelectLine?: (lineId: StableId) => void
   interactiveViewport?: boolean
   viewport?: MapViewport
   onViewportChange?: (viewport: MapViewport) => void
@@ -53,6 +54,7 @@ export function RailMap({
   hideLineNames = false,
   alwaysVisibleStationIds = [],
   onSelectStation,
+  onSelectLine,
   interactiveViewport = false,
   viewport = fullMapViewport,
   onViewportChange,
@@ -182,20 +184,41 @@ export function RailMap({
       >
         <rect width="400" height="350" rx="28" className="map-background" />
         <path d="M18 300 C95 255 88 212 160 194 C250 172 290 120 388 54" className="river" />
-        {demoNetwork.edges.map((edge) => {
-          const from = demoNetwork.stations.find((station) => station.stableId === edge.from)!
-          const to = demoNetwork.stations.find((station) => station.stableId === edge.to)!
-          const line = demoNetwork.lines.find((item) => item.stableId === edge.lineId)!
+        {demoNetwork.lines.map((line) => {
+          const edges = demoNetwork.edges.filter((edge) => edge.lineId === line.stableId)
           return (
-            <line
-              key={edge.stableId}
-              x1={from.x}
-              y1={from.y}
-              x2={to.x}
-              y2={to.y}
-              stroke={line.color}
-              className={`rail-line ${selectedLineId === line.stableId ? 'selected-line' : ''}`}
-            />
+            <g
+              key={line.stableId}
+              className="line-target"
+              role={onSelectLine ? 'button' : undefined}
+              tabIndex={onSelectLine ? 0 : undefined}
+              aria-label={onSelectLine ? `${line.name}を選択` : undefined}
+              onClick={() => onSelectLine?.(line.stableId)}
+              onKeyDown={(event) => {
+                if (onSelectLine && (event.key === 'Enter' || event.key === ' ')) onSelectLine(line.stableId)
+              }}
+            >
+              {edges.map((edge) => {
+                const from = demoNetwork.stations.find((station) => station.stableId === edge.from)!
+                const to = demoNetwork.stations.find((station) => station.stableId === edge.to)!
+                return (
+                  <line
+                    key={edge.stableId}
+                    x1={from.x}
+                    y1={from.y}
+                    x2={to.x}
+                    y2={to.y}
+                    stroke={line.color}
+                    className={`rail-line ${selectedLineId === line.stableId ? 'selected-line' : ''}`}
+                  />
+                )
+              })}
+              {onSelectLine && edges.map((edge) => {
+                const from = demoNetwork.stations.find((station) => station.stableId === edge.from)!
+                const to = demoNetwork.stations.find((station) => station.stableId === edge.to)!
+                return <line key={`${edge.stableId}:hit`} x1={from.x} y1={from.y} x2={to.x} y2={to.y} className="rail-line-hit" />
+              })}
+            </g>
           )
         })}
         {routePairs.map(({ from, to }, index) => {

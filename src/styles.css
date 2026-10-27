@@ -60,6 +60,9 @@ main { padding-bottom: calc(92px + env(safe-area-inset-bottom)); }
 .map-background { fill: #f2f7f3; }
 .river { fill: none; stroke: #bfdfdc; stroke-width: 20; opacity: .65; }
 .rail-line { stroke-width: 8; stroke-linecap: round; }
+.rail-line-hit { fill: none; stroke: transparent; stroke-width: 28; stroke-linecap: round; cursor: pointer; pointer-events: stroke; }
+.line-target { outline: none; }
+.line-target:focus-visible .rail-line { stroke-width: 12; filter: drop-shadow(0 0 4px rgba(255, 180, 42, .9)); }
 .rail-line.selected-line { stroke-width: 14; filter: drop-shadow(0 0 4px rgba(23, 60, 53, .42)); }
 .route-highlight { stroke: #fff; stroke-width: 16; stroke-linecap: round; opacity: .92; }
 .station-target { cursor: pointer; outline: none; }
@@ -71,7 +74,7 @@ main { padding-bottom: calc(92px + env(safe-area-inset-bottom)); }
 .destination-ring { fill: none; stroke: #d23f37; stroke-width: 4; stroke-dasharray: 5 4; }
 .candidate-ring { fill: rgba(248, 187, 76, .22); stroke: #bd7800; stroke-width: 3; }
 .map-legend { display: flex; gap: 14px; padding: 10px 14px 13px; border-top: 1px solid var(--line); color: var(--muted); font-size: .75rem; font-weight: 700; }
-.map-legend span, .line-chips span { display: inline-flex; align-items: center; gap: 6px; }
+.map-legend span, .line-chips span, .line-chips button { display: inline-flex; align-items: center; gap: 6px; }
 .map-legend i, .line-chips i, .candidate-list i { width: 16px; height: 5px; border-radius: 99px; }
 .selected-line-banner { display: flex; align-items: center; gap: 8px; margin: 11px 2px -3px; color: var(--muted); font-size: .75rem; }
 .selected-line-banner strong { flex: 1; color: var(--ink); }
@@ -95,7 +98,18 @@ main { padding-bottom: calc(92px + env(safe-area-inset-bottom)); }
 .level-peek .sheet-detail-content { visibility: hidden; }
 .sheet-detail-content > .mastery-button { width: 100%; }
 .map-detail-sheet .line-chips { flex-wrap: wrap; margin: 11px 0 8px; }
+.map-detail-sheet .line-chips button { padding: 6px 9px; border: 0; border-radius: 99px; color: var(--ink); background: #f2f5f2; font-size: .75rem; font-weight: 700; }
 .map-detail-sheet .neighbor-list h3 { margin-top: 8px; }
+.line-operator { margin: 0 0 9px; color: var(--muted); font-size: .76rem; font-weight: 700; }
+.line-endpoints { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 11px; }
+.line-endpoints div { display: grid; gap: 3px; padding: 10px; border-radius: 12px; background: #f2f5f2; }
+.line-endpoints span { color: var(--muted); font-size: .67rem; font-weight: 800; }
+.line-endpoints strong { font-size: .83rem; }
+.line-stop-list h3 { display: flex; align-items: center; gap: 7px; margin: 9px 0 4px; font-size: .82rem; }
+.line-stop-list button { display: flex; align-items: center; gap: 9px; width: 100%; min-height: 43px; padding: 7px 2px; border: 0; border-top: 1px solid #edf0ee; color: var(--ink); background: transparent; text-align: left; }
+.line-stop-list .stop-number { display: grid; flex: none; place-items: center; width: 25px; height: 25px; border: 2px solid currentColor; border-radius: 50%; font-size: .66rem; font-weight: 900; }
+.line-stop-list strong { flex: 1; }
+.line-stop-list small { color: var(--muted); font-size: .68rem; font-weight: 800; }
 .station-icon { display: grid; place-items: center; width: 40px; height: 40px; border-radius: 14px; background: var(--mint); }
 .mastery-button, .icon-button { display: inline-flex; align-items: center; justify-content: center; gap: 5px; min-height: 40px; padding: 8px 10px; border: 1px solid var(--line); border-radius: 12px; background: #fff; color: var(--ink); font-size: .75rem; font-weight: 800; }
 .mastery-button.active { color: #fff; border-color: var(--green); background: var(--green); }
@@ -413,7 +427,7 @@ main { padding-bottom: calc(92px + env(safe-area-inset-bottom)); }
   .map-controls { border-color: #40544d; background: rgba(22, 36, 31, .94); }
   .map-controls button { color: #dceae4; border-color: #40544d; }
   .sheet-size-controls button { color: #dceae4; border-color: #40544d; background: #1d2d27; }
-  .line-chips span, .metric-row span, .answer-grid button { background: #1d2d27; }
+  .line-chips span, .line-chips button, .line-endpoints div, .metric-row span, .answer-grid button { background: #1d2d27; }
   .quiz-format { background: #1b2a25; }
   .route-section-tabs { background: #1b2a25; }
   .label-mode { background: #1b2a25; }

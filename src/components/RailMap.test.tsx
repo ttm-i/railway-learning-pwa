@@ -50,4 +50,13 @@ describe('RailMap viewport', () => {
 
     expect(onSelectStation).not.toHaveBeenCalled()
   })
+
+  it('selects a line from its visible route', () => {
+    const onSelectLine = vi.fn()
+    render(<RailMap onSelectLine={onSelectLine} />)
+
+    fireEvent.click(screen.getByRole('button', { name: 'あおぞら線を選択' }))
+
+    expect(onSelectLine).toHaveBeenCalledWith('demo:line:aozora')
+  })
 })
