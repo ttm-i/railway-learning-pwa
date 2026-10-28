@@ -73,4 +73,26 @@ describe('RouteGameTab search handoff', () => {
     expect(screen.queryByRole('button', { name: /こもれび.*ゆうひ線/ })).not.toBeInTheDocument()
     expect(screen.getByText('地図上の現在駅をタップすると、次に進める駅が地図と一覧に表示されます。')).toBeInTheDocument()
   })
+
+  it('toggles the destination marker independently and saves the choice', async () => {
+    const { unmount } = render(<RouteGameTab />)
+    const toggle = await screen.findByRole('button', { name: '目的駅の印：表示中' })
+
+    expect(document.querySelectorAll('.destination-ring')).toHaveLength(1)
+    fireEvent.click(toggle)
+
+    expect(screen.getByRole('button', { name: '目的駅の印：非表示' })).toHaveAttribute('aria-pressed', 'false')
+    expect(document.querySelectorAll('.destination-ring')).toHaveLength(0)
+    expect(screen.getByRole('button', { name: '星見ヶ丘駅' })).toBeInTheDocument()
+    await waitFor(async () => expect((await db.routeSuspension.get('active'))?.showDestinationMarker).toBe(false))
+
+    unmount()
+    render(<RouteGameTab />)
+    await waitFor(() => expect(screen.getByRole('button', { name: '目的駅の印：非表示' })).toBeInTheDocument())
+    expect(document.querySelectorAll('.destination-ring')).toHaveLength(0)
+
+    fireEvent.click(screen.getByRole('button', { name: '駅名を隠す' }))
+    expect(document.querySelectorAll('.destination-ring')).toHaveLength(0)
+    expect(screen.getByRole('button', { name: '星見ヶ丘駅' })).toBeInTheDocument()
+  })
 })

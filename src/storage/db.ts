@@ -45,6 +45,7 @@ export interface RouteSuspensionRecord {
   labelMode?: RouteLabelMode
   hintLevel?: HintLevel
   routeExpanded?: boolean
+  showDestinationMarker?: boolean
   viaIds?: StableId[]
   excludedLineIds?: StableId[]
   datasetVersion: string

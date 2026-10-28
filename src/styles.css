@@ -173,6 +173,8 @@ main { padding-bottom: calc(92px + env(safe-area-inset-bottom)); }
 .label-mode { display: grid; grid-template-columns: repeat(3, 1fr); gap: 5px; margin-bottom: 12px; padding: 5px; border-radius: 14px; background: #e9efeb; }
 .label-mode button { min-height: 39px; padding: 6px 4px; border: 0; border-radius: 10px; color: var(--muted); background: transparent; font-size: .67rem; font-weight: 800; line-height: 1.35; }
 .label-mode button.active { color: #fff; background: var(--green); box-shadow: 0 5px 12px rgba(23, 60, 53, .2); }
+.destination-marker-toggle { display: flex; align-items: center; justify-content: center; gap: 6px; width: 100%; min-height: 40px; margin: -5px 0 12px; border: 1px solid var(--line); border-radius: 12px; color: var(--muted); background: #fff; font-size: .72rem; font-weight: 800; }
+.destination-marker-toggle.active { color: #8b3029; border-color: #e7b6b2; background: #fff5f4; }
 .game-status { display: flex; gap: 8px; align-items: center; margin: 12px 2px 0; color: var(--muted); font-size: .78rem; }
 .game-status svg { flex: none; }
 .icon-button:disabled { opacity: .42; }
@@ -437,6 +439,8 @@ main { padding-bottom: calc(92px + env(safe-area-inset-bottom)); }
   .quiz-format { background: #1b2a25; }
   .route-section-tabs { background: #1b2a25; }
   .label-mode { background: #1b2a25; }
+  .destination-marker-toggle { color: var(--muted); background: #16241f; }
+  .destination-marker-toggle.active { color: #ffd2cd; border-color: #70413d; background: #492925; }
   .route-overview { background: #1b2a25; }
   .hidden-route-endpoints { background: #1b2a25; }
   .hint-box { background: #3c3219; }

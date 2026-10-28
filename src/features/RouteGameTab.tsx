@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useLiveQuery } from 'dexie-react-hooks'
-import { ArrowRight, CheckCircle2, ChevronDown, Flag, Gamepad2, History, Lightbulb, List, LocateFixed, RotateCcw, Scissors, Search, Undo2 } from 'lucide-react'
+import { ArrowRight, CheckCircle2, ChevronDown, Eye, EyeOff, Flag, Gamepad2, History, Lightbulb, List, LocateFixed, RotateCcw, Scissors, Search, Undo2 } from 'lucide-react'
 import { fullMapViewport, normalizeMapViewport, RailMap, type MapViewport } from '../components/RailMap'
 import { demoNetwork } from '../data/demoNetwork'
 import { calculateMetrics, getNeighbors, getStation, isValidPath } from '../domain/graph'
@@ -32,6 +32,7 @@ export function RouteGameTab() {
   const [labelMode, setLabelMode] = useState<RouteLabelMode>('all')
   const [hintLevel, setHintLevel] = useState<HintLevel>(0)
   const [routeExpanded, setRouteExpanded] = useState(false)
+  const [showDestinationMarker, setShowDestinationMarker] = useState(true)
   const [viaIds, setViaIds] = useState<StableId[]>([])
   const [excludedLineIds, setExcludedLineIds] = useState<StableId[]>([])
   const [view, setView] = useState<'game' | 'search' | 'history'>('game')
@@ -50,6 +51,7 @@ export function RouteGameTab() {
       if (isLabelMode(saved.labelMode)) setLabelMode(saved.labelMode)
       if ([0, 1, 2, 3].includes(saved.hintLevel ?? -1)) setHintLevel(saved.hintLevel as HintLevel)
       setRouteExpanded(saved.routeExpanded ?? false)
+      setShowDestinationMarker(saved.showDestinationMarker ?? true)
       setViaIds(saved.viaIds ?? [])
       setExcludedLineIds(saved.excludedLineIds ?? [])
       setMessage('前回の続きから再開しました。')
@@ -60,10 +62,10 @@ export function RouteGameTab() {
   useEffect(() => {
     if (!restored) return
     void db.routeSuspension.put({
-      id: 'active', startId, destinationId, path, labelMode, hintLevel, routeExpanded, viaIds, excludedLineIds,
+      id: 'active', startId, destinationId, path, labelMode, hintLevel, routeExpanded, showDestinationMarker, viaIds, excludedLineIds,
       datasetVersion: demoNetwork.version, updatedAt: new Date().toISOString()
     })
-  }, [startId, destinationId, path, labelMode, hintLevel, routeExpanded, viaIds, excludedLineIds, restored])
+  }, [startId, destinationId, path, labelMode, hintLevel, routeExpanded, showDestinationMarker, viaIds, excludedLineIds, restored])
 
   const currentId = path[path.length - 1]
   const candidates = getNeighbors(demoNetwork, currentId).filter(({ edge }) => !excludedLineIds.includes(edge.lineId))
@@ -226,10 +228,19 @@ export function RouteGameTab() {
           <button key={mode.value} className={labelMode === mode.value ? 'active' : ''} onClick={() => setLabelMode(mode.value)}>{mode.label}</button>
         ))}
       </div>
+      <button
+        type="button"
+        className={`destination-marker-toggle ${showDestinationMarker ? 'active' : ''}`}
+        aria-pressed={showDestinationMarker}
+        onClick={() => setShowDestinationMarker((value) => !value)}
+      >
+        {showDestinationMarker ? <Eye size={17} aria-hidden="true" /> : <EyeOff size={17} aria-hidden="true" />}
+        目的駅の印：{showDestinationMarker ? '表示中' : '非表示'}
+      </button>
       <div className="route-game-map">
         <RailMap
           selectedStationId={currentId}
-          destinationId={destinationId}
+          destinationId={showDestinationMarker ? destinationId : undefined}
           route={path}
           candidateIds={candidatesVisible ? candidates.map((candidate) => candidate.stationId) : []}
           hideStationNames={hideStationNames}
