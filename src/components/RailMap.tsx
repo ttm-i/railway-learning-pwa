@@ -265,12 +265,12 @@ export function RailMap({
             ? keepName
               ? candidateNumber ? `${candidateNumber} ${station.canonicalName}` : station.canonicalName
               : candidateNumber ? String(candidateNumber) : ''
-            : station.canonicalName
+            : candidateNumber ? `${candidateNumber} ${station.canonicalName}` : station.canonicalName
           const accessibleLabel = hideStationNames
             ? keepName
               ? `${station.canonicalName}駅${candidateNumber ? `、候補 ${candidateNumber}` : ''}`
               : candidateNumber ? `候補 ${candidateNumber}` : '駅（名前を非表示）'
-            : `${station.canonicalName}駅`
+            : `${station.canonicalName}駅${candidateNumber ? `、候補 ${candidateNumber}` : ''}`
           const stagedLabel = stagedLabelByStation.get(station.stableId)
           const showLabel = Boolean(visibleLabel && (!interactiveViewport || hideStationNames || stagedLabel))
           return (

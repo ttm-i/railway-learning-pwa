@@ -37,6 +37,7 @@ export function RouteGameTab() {
   const [view, setView] = useState<'game' | 'search' | 'history'>('game')
   const [mapViewport, setMapViewport] = useState<MapViewport>(fullMapViewport)
   const [autoFollow, setAutoFollow] = useState(true)
+  const [candidatesVisible, setCandidatesVisible] = useState(false)
   const [restored, setRestored] = useState(false)
   const historyCount = useLiveQuery(() => db.routeHistory.count(), []) ?? 0
 
@@ -81,6 +82,10 @@ export function RouteGameTab() {
     setMapViewport((current) => normalizeMapViewport({ ...current, centerX: currentStation.x, centerY: currentStation.y }))
   }, [currentId, autoFollow])
 
+  useEffect(() => {
+    setCandidatesVisible(false)
+  }, [currentId])
+
   const stationLabel = (stationId: StableId, routeIndex?: number) => {
     const stationName = getStation(demoNetwork, stationId)?.canonicalName ?? '不明な駅'
     if (!hideStationNames || stationId === startId || stationId === destinationId) return stationName
@@ -112,12 +117,28 @@ export function RouteGameTab() {
     }
   }
 
+  const selectStationOnMap = (stationId: StableId) => {
+    if (stationId === currentId) {
+      setCandidatesVisible(true)
+      setMessage(candidates.length > 0
+        ? `次に進める駅を${candidates.length}件表示しました。`
+        : '現在の条件では、この駅から進めません。')
+      return
+    }
+    if (!candidatesVisible) {
+      setMessage('まず地図の現在駅をタップして、次に進める駅を表示してください。')
+      return
+    }
+    move(stationId)
+  }
+
   const restart = (nextStart = startId, nextDestination = destinationId) => {
     setPath([nextStart])
     setHintLevel(0)
     setRouteExpanded(false)
     setMapViewport(fullMapViewport)
     setAutoFollow(true)
+    setCandidatesVisible(false)
     setMessage('新しい経路を開始しました。')
   }
 
@@ -146,6 +167,7 @@ export function RouteGameTab() {
     setRouteExpanded(false)
     setMapViewport(fullMapViewport)
     setAutoFollow(true)
+    setCandidatesVisible(false)
     setMessage('検索条件を引き継ぎました。検索結果は隠しています。')
     setView('game')
   }
@@ -209,11 +231,11 @@ export function RouteGameTab() {
           selectedStationId={currentId}
           destinationId={destinationId}
           route={path}
-          candidateIds={candidates.map((candidate) => candidate.stationId)}
+          candidateIds={candidatesVisible ? candidates.map((candidate) => candidate.stationId) : []}
           hideStationNames={hideStationNames}
           hideLineNames={hideLineNames}
           alwaysVisibleStationIds={[startId, destinationId]}
-          onSelectStation={move}
+          onSelectStation={selectStationOnMap}
           interactiveViewport
           viewport={mapViewport}
           onViewportChange={setMapViewport}
@@ -233,7 +255,7 @@ export function RouteGameTab() {
       <article className="route-panel">
         <div className="route-panel__heading">
           <div><span className="eyebrow">現在駅</span><h2>{stationLabel(currentId)}</h2></div>
-          <button className="icon-button" disabled={path.length <= 1} onClick={() => { setPath((value) => value.slice(0, -1)); setMessage('直前の1操作を戻しました。') }}>
+          <button className="icon-button" disabled={path.length <= 1} onClick={() => { setPath((value) => value.slice(0, -1)); setCandidatesVisible(false); setMessage('直前の1操作を戻しました。') }}>
             <Undo2 size={18} aria-hidden="true" />1操作戻す
           </button>
         </div>
@@ -252,7 +274,7 @@ export function RouteGameTab() {
             {path.map((stationId, index) => (
               <li key={`${stationId}-${index}`}>
                 <span><b>{index + 1}</b>{stationLabel(stationId, index)}</span>
-                {index < path.length - 1 && <button onClick={() => { setPath(path.slice(0, index + 1)); setHintLevel(0); setMessage('選んだ地点から経路を組み直します。') }}><Scissors size={14} aria-hidden="true" />ここから組み直す</button>}
+                {index < path.length - 1 && <button onClick={() => { setPath(path.slice(0, index + 1)); setHintLevel(0); setCandidatesVisible(false); setMessage('選んだ地点から経路を組み直します。') }}><Scissors size={14} aria-hidden="true" />ここから組み直す</button>}
               </li>
             ))}
           </ol>
@@ -263,10 +285,10 @@ export function RouteGameTab() {
           {hintText && <p aria-live="polite"><strong>ヒント {hintLevel}</strong>{hintText}</p>}
         </div>
         <h3>次に進める駅</h3>
-        {candidates.length === 0 ? <p className="game-no-candidates">現在の除外条件では、この駅から進めません。条件を解除するか1操作戻してください。</p> : <div className="candidate-list">
+        {!candidatesVisible ? <p className="candidate-reveal-prompt">地図上の現在駅をタップすると、次に進める駅が地図と一覧に表示されます。</p> : candidates.length === 0 ? <p className="game-no-candidates">現在の除外条件では、この駅から進めません。条件を解除するか1操作戻してください。</p> : <div className="candidate-list">
           {candidates.map(({ stationId, edge }, index) => {
             const line = demoNetwork.lines.find((item) => item.stableId === edge.lineId)!
-            return <button key={stationId} onClick={() => move(stationId)}><i style={{ background: line.color }} /><span>{hideStationNames ? `候補 ${index + 1}` : getStation(demoNetwork, stationId)?.canonicalName}</span><small>{lineLabel(line.stableId)}</small></button>
+            return <button key={stationId} onClick={() => move(stationId)}><i style={{ background: line.color }} /><span>{hideStationNames ? `候補 ${index + 1}` : `${index + 1}. ${getStation(demoNetwork, stationId)?.canonicalName}`}</span><small>{lineLabel(line.stableId)}</small></button>
           })}
         </div>}
         {arrived && <button className="primary-button confirm-button" onClick={confirm}><CheckCircle2 size={19} aria-hidden="true" />この経路で確定</button>}

@@ -30,6 +30,8 @@ describe('RouteGameTab search handoff', () => {
     const inheritedConditions = screen.getByText('引き継いだ条件').closest<HTMLElement>('.game-conditions')
     expect(inheritedConditions).not.toBeNull()
     expect(within(inheritedConditions!).getByText('あおぞら線')).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /みどり中央.*ゆうひ線/ })).not.toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'さくら野駅' }))
     expect(screen.getByRole('button', { name: /みどり中央.*ゆうひ線/ })).toBeInTheDocument()
     expect(screen.queryByText('検索結果')).not.toBeInTheDocument()
     expect(document.querySelectorAll('.route-highlight')).toHaveLength(0)
@@ -44,6 +46,7 @@ describe('RouteGameTab search handoff', () => {
     expect(screen.getByRole('button', { name: '現在駅へ戻る' })).toBeInTheDocument()
     const pausedViewBox = screen.getByTestId('rail-map-svg').getAttribute('viewBox')
 
+    fireEvent.click(screen.getByRole('button', { name: '春風駅' }))
     fireEvent.click(screen.getByRole('button', { name: /みどり中央.*あおぞら線/ }))
     await waitFor(() => expect(screen.getByText('次の駅へ進みました。')).toBeInTheDocument())
     expect(screen.getByTestId('rail-map-svg')).toHaveAttribute('viewBox', pausedViewBox)
@@ -51,5 +54,23 @@ describe('RouteGameTab search handoff', () => {
     fireEvent.click(screen.getByRole('button', { name: '現在駅へ戻る' }))
     expect(screen.getByRole('button', { name: '現在駅を表示中' })).toBeInTheDocument()
     expect(screen.getByTestId('rail-map-svg')).not.toHaveAttribute('viewBox', pausedViewBox)
+  })
+
+  it('reveals candidates only after selecting the current station and hides them after moving', async () => {
+    render(<RouteGameTab />)
+    await screen.findByText('地図上の現在駅をタップすると、次に進める駅が地図と一覧に表示されます。')
+
+    expect(screen.queryByRole('button', { name: /みどり中央.*あおぞら線/ })).not.toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: '春風駅' }))
+
+    expect(screen.getByText('次に進める駅を1件表示しました。')).toBeInTheDocument()
+    expect(screen.getByText('1. みどり中央')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /みどり中央.*あおぞら線/ })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /みどり中央駅、候補 1、次に進めます/ })).toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('button', { name: /みどり中央.*あおぞら線/ }))
+    await waitFor(() => expect(screen.getByText('次の駅へ進みました。')).toBeInTheDocument())
+    expect(screen.queryByRole('button', { name: /こもれび.*ゆうひ線/ })).not.toBeInTheDocument()
+    expect(screen.getByText('地図上の現在駅をタップすると、次に進める駅が地図と一覧に表示されます。')).toBeInTheDocument()
   })
 })
