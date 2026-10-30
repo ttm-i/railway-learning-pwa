@@ -79,6 +79,8 @@ main { padding-bottom: calc(92px + env(safe-area-inset-bottom)); }
 .route-game-map { position: relative; }
 .current-station-button { position: absolute; z-index: 3; top: 10px; left: 10px; display: inline-flex; align-items: center; gap: 6px; min-height: 40px; padding: 8px 10px; border: 1px solid rgba(23, 60, 53, .18); border-radius: 12px; color: #fff; background: rgba(23, 60, 53, .9); box-shadow: 0 5px 16px rgba(29, 54, 47, .16); font-size: .7rem; font-weight: 800; }
 .current-station-button.paused { color: #604917; background: rgba(255, 239, 196, .94); }
+.map-undo-button { position: absolute; z-index: 3; top: 58px; left: 10px; display: inline-flex; align-items: center; gap: 5px; min-height: 38px; padding: 7px 10px; border: 1px solid rgba(23, 60, 53, .18); border-radius: 11px; color: var(--ink); background: rgba(255, 255, 255, .94); box-shadow: 0 5px 16px rgba(29, 54, 47, .13); font-size: .68rem; font-weight: 800; }
+.map-undo-button:disabled { color: #8c9994; opacity: .68; }
 .map-legend span, .line-chips span, .line-chips button { display: inline-flex; align-items: center; gap: 6px; }
 .map-legend i, .line-chips i, .candidate-list i { width: 16px; height: 5px; border-radius: 99px; }
 .selected-line-banner { display: flex; align-items: center; gap: 8px; margin: 11px 2px -3px; color: var(--muted); font-size: .75rem; }
@@ -165,6 +167,8 @@ main { padding-bottom: calc(92px + env(safe-area-inset-bottom)); }
 .route-selectors { display: grid; grid-template-columns: 1fr auto 1fr; gap: 8px; align-items: end; margin-bottom: 12px; }
 .route-selectors label { color: var(--muted); font-size: .71rem; font-weight: 800; }
 .route-selectors select { width: 100%; margin-top: 5px; padding: 10px 8px; border: 1px solid var(--line); border-radius: 12px; color: var(--ink); background: #fff; font-weight: 700; }
+.route-question-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 7px; margin: -5px 0 12px; }
+.route-question-actions button { display: inline-flex; align-items: center; justify-content: center; gap: 6px; min-height: 40px; padding: 8px; border: 1px solid var(--line); border-radius: 11px; color: var(--green); background: #fff; font-size: .7rem; font-weight: 800; }
 .hidden-route-endpoints { display: grid; grid-template-columns: 1fr auto 1fr; gap: 8px; align-items: center; margin-bottom: 12px; padding: 10px 12px; border: 1px solid var(--line); border-radius: 14px; background: #f5f8f6; }
 .hidden-route-endpoints > span { display: grid; gap: 2px; }
 .hidden-route-endpoints small { color: var(--muted); font-size: .67rem; font-weight: 800; }
@@ -439,6 +443,7 @@ main { padding-bottom: calc(92px + env(safe-area-inset-bottom)); }
   .quiz-format { background: #1b2a25; }
   .route-section-tabs { background: #1b2a25; }
   .label-mode { background: #1b2a25; }
+  .route-question-actions button, .map-undo-button { color: var(--ink); border-color: #40544d; background: rgba(22, 36, 31, .94); }
   .destination-marker-toggle { color: var(--muted); background: #16241f; }
   .destination-marker-toggle.active { color: #ffd2cd; border-color: #70413d; background: #492925; }
   .route-overview { background: #1b2a25; }

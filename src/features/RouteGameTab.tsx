@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useLiveQuery } from 'dexie-react-hooks'
-import { ArrowRight, CheckCircle2, ChevronDown, Eye, EyeOff, Flag, Gamepad2, History, Lightbulb, List, LocateFixed, RotateCcw, Scissors, Search, Undo2 } from 'lucide-react'
+import { ArrowLeftRight, ArrowRight, CheckCircle2, ChevronDown, Eye, EyeOff, Flag, Gamepad2, History, Lightbulb, List, LocateFixed, RotateCcw, Scissors, Search, Shuffle, Undo2 } from 'lucide-react'
 import { fullMapViewport, normalizeMapViewport, RailMap, type MapViewport } from '../components/RailMap'
 import { demoNetwork } from '../data/demoNetwork'
 import { calculateMetrics, getNeighbors, getStation, isValidPath } from '../domain/graph'
@@ -144,6 +144,35 @@ export function RouteGameTab() {
     setMessage('新しい経路を開始しました。')
   }
 
+  const startNewQuestion = (nextStart: StableId, nextDestination: StableId, nextMessage: string) => {
+    setStartId(nextStart)
+    setDestinationId(nextDestination)
+    setViaIds([])
+    setExcludedLineIds([])
+    restart(nextStart, nextDestination)
+    setMessage(nextMessage)
+  }
+
+  const swapEndpoints = () => {
+    startNewQuestion(destinationId, startId, '出発駅と目的駅を入れ替えました。新しい経路を始めます。')
+  }
+
+  const startRandomQuestion = () => {
+    const stationIds = demoNetwork.stations.map((station) => station.stableId)
+    const startIndex = Math.floor(Math.random() * stationIds.length)
+    const destinationOffset = 1 + Math.floor(Math.random() * (stationIds.length - 1))
+    const nextStart = stationIds[startIndex]
+    const nextDestination = stationIds[(startIndex + destinationOffset) % stationIds.length]
+    startNewQuestion(nextStart, nextDestination, 'ランダムな出発駅と目的駅で新しい問題を始めました。')
+  }
+
+  const undoLastMove = () => {
+    if (path.length <= 1) return
+    setPath((value) => value.slice(0, -1))
+    setCandidatesVisible(false)
+    setMessage('直前の1操作を戻しました。')
+  }
+
   const confirm = async () => {
     if (!arrived) return
     await db.routeHistory.add({
@@ -201,19 +230,25 @@ export function RouteGameTab() {
           <p>出発駅・目的駅を変更するときは「すべて表示」に戻してください。</p>
         </div>
       ) : (
-        <div className="route-selectors">
-          <label>出発駅
-            <select value={startId} onChange={(event) => { const id = event.target.value as StableId; setStartId(id); setViaIds([]); setExcludedLineIds([]); restart(id, destinationId) }}>
-              {demoNetwork.stations.map((station) => <option value={station.stableId} key={station.stableId}>{station.canonicalName}</option>)}
-            </select>
-          </label>
-          <ArrowRight size={18} aria-hidden="true" />
-          <label>目的駅
-            <select value={destinationId} onChange={(event) => { const id = event.target.value as StableId; setDestinationId(id); setViaIds([]); setExcludedLineIds([]); restart(startId, id) }}>
-              {demoNetwork.stations.map((station) => <option value={station.stableId} key={station.stableId}>{station.canonicalName}</option>)}
-            </select>
-          </label>
-        </div>
+        <>
+          <div className="route-selectors">
+            <label>出発駅
+              <select value={startId} onChange={(event) => startNewQuestion(event.target.value as StableId, destinationId, '出発駅を変更して、新しい経路を始めました。')}>
+                {demoNetwork.stations.map((station) => <option value={station.stableId} key={station.stableId}>{station.canonicalName}</option>)}
+              </select>
+            </label>
+            <ArrowRight size={18} aria-hidden="true" />
+            <label>目的駅
+              <select value={destinationId} onChange={(event) => startNewQuestion(startId, event.target.value as StableId, '目的駅を変更して、新しい経路を始めました。')}>
+                {demoNetwork.stations.map((station) => <option value={station.stableId} key={station.stableId}>{station.canonicalName}</option>)}
+              </select>
+            </label>
+          </div>
+          <div className="route-question-actions" aria-label="問題の作成">
+            <button type="button" onClick={swapEndpoints}><ArrowLeftRight size={16} aria-hidden="true" />出発・目的を入替</button>
+            <button type="button" onClick={startRandomQuestion}><Shuffle size={16} aria-hidden="true" />ランダム出題</button>
+          </div>
+        </>
       )}
       {(viaIds.length > 0 || excludedLineIds.length > 0) && (
         <div className="game-conditions">
@@ -261,14 +296,19 @@ export function RouteGameTab() {
           <LocateFixed size={17} aria-hidden="true" />
           {autoFollow ? '現在駅を表示中' : '現在駅へ戻る'}
         </button>
+        <button
+          type="button"
+          className="map-undo-button"
+          disabled={path.length <= 1}
+          onClick={undoLastMove}
+        >
+          <Undo2 size={17} aria-hidden="true" />1操作戻す
+        </button>
       </div>
       <div className="game-status" aria-live="polite"><Flag size={17} aria-hidden="true" /><span>{message}</span></div>
       <article className="route-panel">
         <div className="route-panel__heading">
           <div><span className="eyebrow">現在駅</span><h2>{stationLabel(currentId)}</h2></div>
-          <button className="icon-button" disabled={path.length <= 1} onClick={() => { setPath((value) => value.slice(0, -1)); setCandidatesVisible(false); setMessage('直前の1操作を戻しました。') }}>
-            <Undo2 size={18} aria-hidden="true" />1操作戻す
-          </button>
         </div>
         <div className="metric-row">
           <span><strong>{metrics.railSegments}</strong> 駅間</span>

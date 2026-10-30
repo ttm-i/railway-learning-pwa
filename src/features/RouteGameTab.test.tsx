@@ -95,4 +95,36 @@ describe('RouteGameTab search handoff', () => {
     expect(document.querySelectorAll('.destination-ring')).toHaveLength(0)
     expect(screen.getByRole('button', { name: '星見ヶ丘駅' })).toBeInTheDocument()
   })
+
+  it('swaps endpoints and creates a random question with different endpoints', async () => {
+    render(<RouteGameTab />)
+    const startSelect = await screen.findByLabelText('出発駅')
+    const destinationSelect = screen.getByLabelText('目的駅')
+
+    fireEvent.click(screen.getByRole('button', { name: '出発・目的を入替' }))
+    expect(startSelect).toHaveValue('demo:station:hoshimi')
+    expect(destinationSelect).toHaveValue('demo:station:harukaze')
+    expect(screen.getByText('出発駅と目的駅を入れ替えました。新しい経路を始めます。')).toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('button', { name: 'ランダム出題' }))
+    expect(startSelect).not.toHaveValue((destinationSelect as HTMLSelectElement).value)
+    expect(screen.getByText('ランダムな出発駅と目的駅で新しい問題を始めました。')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: '1操作戻す' })).toBeDisabled()
+  })
+
+  it('keeps undo on the map and returns one station without revealing candidates', async () => {
+    render(<RouteGameTab />)
+    const undo = await screen.findByRole('button', { name: '1操作戻す' })
+    expect(undo).toBeDisabled()
+    expect(undo.closest('.route-game-map')).not.toBeNull()
+
+    fireEvent.click(screen.getByRole('button', { name: '春風駅' }))
+    fireEvent.click(screen.getByRole('button', { name: /みどり中央.*あおぞら線/ }))
+    expect(undo).toBeEnabled()
+
+    fireEvent.click(undo)
+    expect(screen.getByText('直前の1操作を戻しました。')).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: '春風' })).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /みどり中央.*あおぞら線/ })).not.toBeInTheDocument()
+  })
 })
